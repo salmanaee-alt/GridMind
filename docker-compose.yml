@@ -1,16 +1,15 @@
 services:
+
   backend:
-    image: python:3.12-slim
+    build:
+      context: ./backend
+
     container_name: gridmind-backend
-    working_dir: /app
+
+    ports:
+      - "8000:8000"
+
     volumes:
       - ./backend:/app
-    command: tail -f /dev/null
 
-  ai-engine:
-    image: python:3.12-slim
-    container_name: gridmind-ai
-    working_dir: /app
-    volumes:
-      - ./ai-engine:/app
-    command: tail -f /dev/null
+    restart: unless-stopped
