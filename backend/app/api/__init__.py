@@ -2,6 +2,7 @@
 
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
+from app.transformer.engineer import TransformerEngineer
 
 router = APIRouter()
 
@@ -28,17 +29,21 @@ async def test_engineering_brain():
         title="Transformer differential relay trip investigation"
     )
 
-    session.add_observation(
-        {
-            "asset": "Transformer T1",
-            "voltage": "230/13.8 kV",
-            "event": "Differential relay trip",
-            "available_data": ["basic event description"],
-            "missing_data": ["COMTRADE", "relay event report", "DGA", "inspection record"],
-        }
-    )
+    session.add_observation({
+        "asset": "Transformer T1",
+        "voltage": "230/13.8 kV",
+        "event": "Differential relay trip",
+        "available_data": ["basic event description"],
+        "missing_data": ["COMTRADE", "relay event report", "DGA", "inspection record"],
+    })
 
     brain = EngineeringBrain()
     completed_session = brain.run(session)
 
     return completed_session.to_dict()
+
+
+@router.post("/transformer/differential-trip")
+async def transformer_differential_trip():
+    engineer = TransformerEngineer()
+    return engineer.investigate_differential_trip()
