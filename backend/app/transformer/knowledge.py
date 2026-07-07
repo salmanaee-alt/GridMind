@@ -30,4 +30,9 @@ TRANSFORMER_EVENT_KNOWLEDGE = {
 
 
 def get_transformer_event_knowledge(event_type: str) -> dict:
-    return TRANSFORMER_EVENT_KNOWLEDGE.get(event_type, {})
+    knowledge = TRANSFORMER_EVENT_KNOWLEDGE.get(event_type)
+
+    if knowledge is None:
+        raise ValueError(f"Unknown transformer event type: {event_type}")
+
+    return knowledge
