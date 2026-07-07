@@ -106,7 +106,7 @@ class EngineeringBrain:
             hypothesis_source = "engineering_role_knowledge"
 
         ranked_hypotheses = self._rank_hypotheses(session)
-        most_likely_hypothesis = ranked_hypotheses[0] if ranked_hypotheses else None
+        top_ranked_hypothesis = ranked_hypotheses[0] if ranked_hypotheses else None
         hypothesis_missing_evidence = self._extract_hypothesis_missing_evidence(session)
 
         combined_missing_evidence = self._merge_unique(
@@ -121,7 +121,7 @@ class EngineeringBrain:
                 data={
                     "hypothesis_count": len(session.hypotheses),
                     "hypothesis_source": hypothesis_source,
-                    "most_likely_hypothesis": most_likely_hypothesis,
+                    "top_ranked_hypothesis": top_ranked_hypothesis,
                 },
             )
         )
@@ -134,7 +134,7 @@ class EngineeringBrain:
                 data={
                     "reasoning_mode": "hypothesis_aware_preliminary_reasoning",
                     "final_conclusion_allowed": not bool(combined_missing_evidence),
-                    "most_likely_hypothesis": most_likely_hypothesis,
+                    "top_ranked_hypothesis": top_ranked_hypothesis,
                     "combined_missing_evidence": combined_missing_evidence,
                 },
             )
@@ -145,9 +145,9 @@ class EngineeringBrain:
         if combined_missing_evidence:
             confidence = "low"
             risk = "high_due_to_missing_critical_evidence"
-        elif most_likely_hypothesis:
-            confidence = most_likely_hypothesis.get("confidence", "medium")
-            risk = most_likely_hypothesis.get("risk", "high_if_internal_fault_confirmed")
+        elif top_ranked_hypothesis:
+            confidence = top_ranked_hypothesis.get("confidence", "medium")
+            risk = top_ranked_hypothesis.get("risk", "high_if_internal_fault_confirmed")
         else:
             confidence = "low"
             risk = "unknown"
@@ -173,7 +173,7 @@ class EngineeringBrain:
                 "decision": "Do not issue a final root-cause conclusion. Required evidence must be collected before re-energization or final RCA.",
                 "confidence": "low",
                 "safety_position": "conservative",
-                "most_likely_hypothesis": most_likely_hypothesis,
+                "top_ranked_hypothesis": top_ranked_hypothesis,
                 "required_next_evidence": combined_missing_evidence,
             }
         else:
@@ -182,7 +182,7 @@ class EngineeringBrain:
                 "decision": "Proceed with detailed engineering review. Available evidence is sufficient for preliminary analysis, but final energization decision remains subject to approved operational procedures.",
                 "confidence": confidence,
                 "safety_position": "controlled",
-                "most_likely_hypothesis": most_likely_hypothesis,
+                "top_ranked_hypothesis": top_ranked_hypothesis,
             }
 
         session.add_decision(decision)
@@ -194,7 +194,7 @@ class EngineeringBrain:
                 data={
                     "decision_count": len(session.decisions),
                     "decision_type": decision["decision_type"],
-                    "most_likely_hypothesis": most_likely_hypothesis,
+                    "top_ranked_hypothesis": top_ranked_hypothesis,
                 },
             )
         )
@@ -218,7 +218,7 @@ class EngineeringBrain:
             "title": "Preliminary Transformer Differential Trip Investigation",
             "summary": report_summary,
             "confidence": report_confidence,
-            "most_likely_hypothesis": most_likely_hypothesis,
+            "top_ranked_hypothesis": top_ranked_hypothesis,
             "ranked_hypotheses": ranked_hypotheses,
             "next_required_evidence": combined_missing_evidence,
         })
