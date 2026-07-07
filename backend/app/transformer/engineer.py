@@ -3,6 +3,7 @@
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.transformer.knowledge import get_transformer_event_knowledge
+from app.transformer.reasoning import evaluate_differential_trip_hypotheses
 from app.transformer.schemas import TransformerDifferentialTripRequest
 
 
@@ -15,6 +16,7 @@ def clean_text(value: str | None) -> str | None:
     if not cleaned:
         return None
 
+    # Temporary development guard to ignore Swagger default placeholder values.
     if cleaned.lower() == "string":
         return None
 
@@ -69,6 +71,18 @@ class TransformerEngineer:
             if item not in missing_required_evidence:
                 missing_required_evidence.append(item)
 
+        available_evidence = sorted(list(known_available))
+
+        hypothesis_evaluations = evaluate_differential_trip_hypotheses(
+            available_evidence=available_evidence,
+            missing_required_evidence=missing_required_evidence,
+            buchholz_alarm=request.buchholz_alarm,
+            comtrade_available=request.comtrade_available,
+            dga_available=request.dga_available,
+            oil_temperature_c=request.oil_temperature_c,
+            load_percent=request.load_percent,
+        )
+
         session = EngineeringSession(
             title=knowledge["description"],
             metadata={
@@ -92,16 +106,20 @@ class TransformerEngineer:
             "dga_available": request.dga_available,
             "notes": notes,
             "initial_safety_position": knowledge["initial_safety_position"],
-            "available_evidence": sorted(list(known_available)),
+            "available_evidence": available_evidence,
             "missing_required_evidence": missing_required_evidence,
             "source": "Transformer Knowledge v0.1",
         })
 
-        for hypothesis in knowledge["initial_hypotheses"]:
+        for evaluation in hypothesis_evaluations:
             session.add_hypothesis({
-                "hypothesis": hypothesis,
-                "status": "to_be_evaluated",
-                "source": "Transformer Knowledge v0.1",
+                "hypothesis": evaluation["hypothesis"],
+                "confidence": evaluation["confidence"],
+                "supporting_evidence": evaluation["supporting_evidence"],
+                "missing_evidence": evaluation["missing_evidence"],
+                "risk": evaluation["risk"],
+                "recommended_next_action": evaluation["recommended_next_action"],
+                "source": "Transformer Reasoning v0.2",
             })
 
         brain = EngineeringBrain()
