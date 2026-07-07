@@ -43,21 +43,30 @@ class EngineeringBrain:
         )
 
         session.set_status(InvestigationStatus.HYPOTHESIZING)
-        session.add_hypothesis({
-            "hypothesis": "Internal transformer fault",
-            "initial_confidence": "medium",
-            "reason": "Differential relay operation requires investigation."
-        })
-        session.add_hypothesis({
-            "hypothesis": "Protection misoperation",
-            "initial_confidence": "low",
-            "reason": "Relay event and COMTRADE validation are required."
-        })
+
+        if not session.hypotheses:
+            session.add_hypothesis({
+                "hypothesis": "Internal equipment fault",
+                "initial_confidence": "medium",
+                "reason": "A protective trip requires engineering investigation."
+            })
+            session.add_hypothesis({
+                "hypothesis": "Protection misoperation",
+                "initial_confidence": "low",
+                "reason": "Protection operation must be validated using relay records and waveform data."
+            })
+            hypothesis_source = "engineering_brain_default"
+        else:
+            hypothesis_source = "engineering_role_knowledge"
+
         session.add_reasoning_step(
             StageResult(
                 stage="hypothesize",
-                summary="Generated initial competing engineering hypotheses.",
-                data={"hypothesis_count": len(session.hypotheses)},
+                summary="Generated or accepted competing engineering hypotheses.",
+                data={
+                    "hypothesis_count": len(session.hypotheses),
+                    "hypothesis_source": hypothesis_source,
+                },
             )
         )
 

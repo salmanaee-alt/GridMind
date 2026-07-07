@@ -3,11 +3,71 @@
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.transformer.knowledge import get_transformer_event_knowledge
+from app.transformer.schemas import TransformerDifferentialTripRequest
+
+
+def clean_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = value.strip()
+
+    if not cleaned:
+        return None
+
+    if cleaned.lower() == "string":
+        return None
+
+    return cleaned
+
+
+def clean_list(values: list[str]) -> list[str]:
+    cleaned_values: list[str] = []
+
+    for value in values:
+        cleaned = clean_text(value)
+        if cleaned is not None:
+            cleaned_values.append(cleaned)
+
+    return cleaned_values
 
 
 class TransformerEngineer:
-    def investigate_differential_trip(self) -> dict:
+    def investigate_differential_trip(self, request: TransformerDifferentialTripRequest) -> dict:
         knowledge = get_transformer_event_knowledge("differential_trip")
+
+        asset_id = clean_text(request.asset_id) or "Unknown Transformer"
+        voltage_level = clean_text(request.voltage_level)
+        event_description = clean_text(request.event_description) or "Transformer differential relay trip"
+        relay_name = clean_text(request.relay_name)
+        notes = clean_text(request.notes)
+
+        known_available = set(clean_list(request.available_data))
+
+        if request.comtrade_available:
+            known_available.add("COMTRADE waveform")
+
+        if request.dga_available:
+            known_available.add("DGA report")
+
+        if request.buchholz_alarm is not None:
+            known_available.add("Buchholz relay status")
+
+        if request.oil_temperature_c is not None:
+            known_available.add("Oil temperature")
+
+        if request.load_percent is not None:
+            known_available.add("Load before trip")
+
+        missing_required_evidence = [
+            item
+            for item in knowledge["required_evidence"]
+            if item not in known_available
+        ]
+
+        for item in clean_list(request.missing_data):
+            if item not in missing_required_evidence:
+                missing_required_evidence.append(item)
 
         session = EngineeringSession(
             title=knowledge["description"],
@@ -15,13 +75,25 @@ class TransformerEngineer:
                 "engineering_role": "Transformer Engineer",
                 "event_type": "differential_trip",
                 "risk_level": knowledge["risk_level"],
+                "asset_id": asset_id,
+                "voltage_level": voltage_level,
             },
         )
 
         session.add_observation({
-            "event": "Transformer differential relay trip",
+            "asset_id": asset_id,
+            "voltage_level": voltage_level,
+            "event": event_description,
+            "relay_name": relay_name,
+            "oil_temperature_c": request.oil_temperature_c,
+            "load_percent": request.load_percent,
+            "buchholz_alarm": request.buchholz_alarm,
+            "comtrade_available": request.comtrade_available,
+            "dga_available": request.dga_available,
+            "notes": notes,
             "initial_safety_position": knowledge["initial_safety_position"],
-            "required_evidence": knowledge["required_evidence"],
+            "available_evidence": sorted(list(known_available)),
+            "missing_required_evidence": missing_required_evidence,
             "source": "Transformer Knowledge v0.1",
         })
 

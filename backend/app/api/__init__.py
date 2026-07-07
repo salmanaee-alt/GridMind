@@ -3,6 +3,7 @@
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.transformer.engineer import TransformerEngineer
+from app.transformer.schemas import TransformerDifferentialTripRequest
 
 router = APIRouter()
 
@@ -44,6 +45,6 @@ async def test_engineering_brain():
 
 
 @router.post("/transformer/differential-trip")
-async def transformer_differential_trip():
+async def transformer_differential_trip(request: TransformerDifferentialTripRequest):
     engineer = TransformerEngineer()
-    return engineer.investigate_differential_trip()
+    return engineer.investigate_differential_trip(request)
