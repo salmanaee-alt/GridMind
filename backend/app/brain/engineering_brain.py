@@ -13,6 +13,13 @@ class StageResult:
     data: dict[str, Any]
 
 
+CONFIDENCE_RANK = {
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+}
+
+
 class EngineeringBrain:
     def run(self, session: EngineeringSession) -> EngineeringSession:
         if session.status == InvestigationStatus.COMPLETED:
@@ -78,17 +85,34 @@ class EngineeringBrain:
         if not session.hypotheses:
             session.add_hypothesis({
                 "hypothesis": "Internal equipment fault",
-                "initial_confidence": "medium",
-                "reason": "A protective trip requires engineering investigation."
+                "confidence": "medium",
+                "supporting_evidence": [],
+                "missing_evidence": [],
+                "risk": "high",
+                "recommended_next_action": "Collect equipment-specific evidence before making a conclusion.",
+                "source": "engineering_brain_default",
             })
             session.add_hypothesis({
                 "hypothesis": "Protection misoperation",
-                "initial_confidence": "low",
-                "reason": "Protection operation must be validated using relay records and waveform data."
+                "confidence": "low",
+                "supporting_evidence": [],
+                "missing_evidence": [],
+                "risk": "medium",
+                "recommended_next_action": "Validate relay records and waveform data.",
+                "source": "engineering_brain_default",
             })
             hypothesis_source = "engineering_brain_default"
         else:
             hypothesis_source = "engineering_role_knowledge"
+
+        ranked_hypotheses = self._rank_hypotheses(session)
+        most_likely_hypothesis = ranked_hypotheses[0] if ranked_hypotheses else None
+        hypothesis_missing_evidence = self._extract_hypothesis_missing_evidence(session)
+
+        combined_missing_evidence = self._merge_unique(
+            missing_required_evidence,
+            hypothesis_missing_evidence,
+        )
 
         session.add_reasoning_step(
             StageResult(
@@ -97,6 +121,7 @@ class EngineeringBrain:
                 data={
                     "hypothesis_count": len(session.hypotheses),
                     "hypothesis_source": hypothesis_source,
+                    "most_likely_hypothesis": most_likely_hypothesis,
                 },
             )
         )
@@ -105,51 +130,59 @@ class EngineeringBrain:
         session.add_reasoning_step(
             StageResult(
                 stage="reason",
-                summary="Applied preliminary engineering reasoning based on current evidence.",
+                summary="Applied preliminary engineering reasoning using evidence sufficiency and hypothesis evaluations.",
                 data={
-                    "reasoning_mode": "evidence_based_preliminary_reasoning",
-                    "final_conclusion_allowed": not bool(missing_required_evidence),
+                    "reasoning_mode": "hypothesis_aware_preliminary_reasoning",
+                    "final_conclusion_allowed": not bool(combined_missing_evidence),
+                    "most_likely_hypothesis": most_likely_hypothesis,
+                    "combined_missing_evidence": combined_missing_evidence,
                 },
             )
         )
 
         session.set_status(InvestigationStatus.EVALUATING)
 
-        if missing_required_evidence:
+        if combined_missing_evidence:
             confidence = "low"
             risk = "high_due_to_missing_critical_evidence"
+        elif most_likely_hypothesis:
+            confidence = most_likely_hypothesis.get("confidence", "medium")
+            risk = most_likely_hypothesis.get("risk", "high_if_internal_fault_confirmed")
         else:
-            confidence = "medium"
-            risk = "high_if_internal_fault_confirmed"
+            confidence = "low"
+            risk = "unknown"
 
         session.add_reasoning_step(
             StageResult(
                 stage="evaluate",
-                summary="Evaluated confidence, risk, and missing evidence.",
+                summary="Evaluated confidence, risk, missing evidence, and ranked hypotheses.",
                 data={
                     "confidence": confidence,
                     "risk": risk,
-                    "missing_data": missing_required_evidence,
+                    "missing_data": combined_missing_evidence,
+                    "ranked_hypotheses": ranked_hypotheses,
                 },
             )
         )
 
         session.set_status(InvestigationStatus.DECIDING)
 
-        if missing_required_evidence:
+        if combined_missing_evidence:
             decision = {
                 "decision_type": "evidence_required_before_final_decision",
                 "decision": "Do not issue a final root-cause conclusion. Required evidence must be collected before re-energization or final RCA.",
                 "confidence": "low",
                 "safety_position": "conservative",
-                "required_next_evidence": missing_required_evidence,
+                "most_likely_hypothesis": most_likely_hypothesis,
+                "required_next_evidence": combined_missing_evidence,
             }
         else:
             decision = {
                 "decision_type": "engineering_recommendation",
                 "decision": "Proceed with detailed engineering review. Available evidence is sufficient for preliminary analysis, but final energization decision remains subject to approved operational procedures.",
-                "confidence": "medium",
+                "confidence": confidence,
                 "safety_position": "controlled",
+                "most_likely_hypothesis": most_likely_hypothesis,
             }
 
         session.add_decision(decision)
@@ -157,34 +190,43 @@ class EngineeringBrain:
         session.add_reasoning_step(
             StageResult(
                 stage="decide",
-                summary="Produced an engineering decision based on evidence sufficiency.",
+                summary="Produced an engineering decision using evidence sufficiency and hypothesis ranking.",
                 data={
                     "decision_count": len(session.decisions),
                     "decision_type": decision["decision_type"],
+                    "most_likely_hypothesis": most_likely_hypothesis,
                 },
             )
         )
 
         session.set_status(InvestigationStatus.EXPLAINING)
 
-        if missing_required_evidence:
-            report_summary = "The investigation cannot reach a final root-cause conclusion because required evidence is missing. The safest engineering position is to keep the transformer out of service until the missing evidence is reviewed."
+        if combined_missing_evidence:
+            report_summary = (
+                "The investigation cannot reach a final root-cause conclusion because required evidence is missing. "
+                "The safest engineering position is to keep the transformer out of service until the missing evidence is reviewed."
+            )
             report_confidence = "low"
         else:
-            report_summary = "The minimum required evidence appears available for preliminary engineering reasoning. Further detailed review is still required before operational decisions."
-            report_confidence = "medium"
+            report_summary = (
+                "The minimum required evidence appears available for preliminary engineering reasoning. "
+                "Further detailed review is still required before operational decisions."
+            )
+            report_confidence = confidence
 
         session.add_report({
             "title": "Preliminary Transformer Differential Trip Investigation",
             "summary": report_summary,
             "confidence": report_confidence,
-            "next_required_evidence": missing_required_evidence,
+            "most_likely_hypothesis": most_likely_hypothesis,
+            "ranked_hypotheses": ranked_hypotheses,
+            "next_required_evidence": combined_missing_evidence,
         })
 
         session.add_reasoning_step(
             StageResult(
                 stage="explain",
-                summary="Generated an auditable preliminary engineering explanation.",
+                summary="Generated an auditable preliminary engineering explanation with hypothesis ranking.",
                 data={"report_count": len(session.reports)},
             )
         )
@@ -214,3 +256,43 @@ class EngineeringBrain:
                             missing.append(item)
 
         return missing
+
+    def _extract_hypothesis_missing_evidence(self, session: EngineeringSession) -> list[str]:
+        missing: list[str] = []
+
+        for hypothesis in session.hypotheses:
+            if isinstance(hypothesis, dict):
+                hypothesis_missing = hypothesis.get("missing_evidence", [])
+
+                if isinstance(hypothesis_missing, list):
+                    for item in hypothesis_missing:
+                        if isinstance(item, str) and item not in missing:
+                            missing.append(item)
+
+        return missing
+
+    def _rank_hypotheses(self, session: EngineeringSession) -> list[dict[str, Any]]:
+        hypotheses = [
+            hypothesis
+            for hypothesis in session.hypotheses
+            if isinstance(hypothesis, dict)
+        ]
+
+        return sorted(
+            hypotheses,
+            key=lambda hypothesis: (
+                CONFIDENCE_RANK.get(str(hypothesis.get("confidence", "low")), 0),
+                len(hypothesis.get("supporting_evidence", [])),
+                -len(hypothesis.get("missing_evidence", [])),
+            ),
+            reverse=True,
+        )
+
+    def _merge_unique(self, first: list[str], second: list[str]) -> list[str]:
+        merged: list[str] = []
+
+        for item in first + second:
+            if item not in merged:
+                merged.append(item)
+
+        return merged
