@@ -95,3 +95,42 @@ def test_transformer_differential_trip_with_complete_evidence():
     )
 
     assert reason_step["data"]["final_conclusion_allowed"] is True
+
+
+def test_transformer_differential_trip_hypotheses_are_evaluated():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": ["Relay event report"],
+        "missing_data": [],
+        "comtrade_available": False,
+        "dga_available": False,
+        "buchholz_alarm": None,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "notes": "No smoke reported. Initial site inspection pending."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    hypotheses = data["session"]["hypotheses"]
+
+    assert len(hypotheses) == 5
+
+    for hypothesis in hypotheses:
+        assert "hypothesis" in hypothesis
+        assert "confidence" in hypothesis
+        assert "supporting_evidence" in hypothesis
+        assert "missing_evidence" in hypothesis
+        assert "risk" in hypothesis
+        assert "recommended_next_action" in hypothesis
+        assert hypothesis["source"] == "Transformer Reasoning v0.2"
+
+        assert hypothesis["confidence"] in ["low", "medium", "high"]
+        assert isinstance(hypothesis["supporting_evidence"], list)
+        assert isinstance(hypothesis["missing_evidence"], list)
