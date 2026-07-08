@@ -12,4 +12,31 @@ services:
     volumes:
       - ./backend:/app
 
+    environment:
+      DATABASE_URL: postgresql://gridmind:gridmind@postgres:5432/gridmind
+
+    depends_on:
+      - postgres
+
     restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+
+    container_name: gridmind-postgres
+
+    environment:
+      POSTGRES_DB: gridmind
+      POSTGRES_USER: gridmind
+      POSTGRES_PASSWORD: gridmind
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
