@@ -130,7 +130,7 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert "risk" in hypothesis
         assert "conflicts" in hypothesis
         assert "recommended_next_action" in hypothesis
-        assert hypothesis["source"] == "Transformer Reasoning v0.4"
+        assert hypothesis["source"] == "Transformer Reasoning v0.5"
 
         assert hypothesis["confidence"] in ["low", "medium", "high"]
         assert isinstance(hypothesis["supporting_evidence"], list)
@@ -211,7 +211,7 @@ def test_transformer_content_reasoning_ranks_internal_fault_high():
 
     assert top_ranked["hypothesis"] == "Internal transformer fault"
     assert top_ranked["confidence"] == "high"
-    assert top_ranked["source"] == "Transformer Reasoning v0.4"
+    assert top_ranked["source"] == "Transformer Reasoning v0.5"
 
     assert "DGA status is abnormal." in top_ranked["supporting_evidence"]
     assert "COMTRADE summary does not indicate inrush." in top_ranked["supporting_evidence"]
@@ -318,3 +318,57 @@ def test_transformer_evidence_quality_scoring_is_reported():
     assert evidence_quality["quality_level"] in ["low", "medium", "high"]
     assert evidence_quality["unresolved_conflict_count"] >= 1
     assert evidence_quality["conflict_penalty"] > 0
+
+
+def test_transformer_conflict_blocks_final_decision_even_with_complete_evidence():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "normal",
+        "comtrade_summary": "no_inrush",
+        "notes": "All required evidence is available, but DGA is normal while relay target indicates differential operation and COMTRADE indicates no inrush."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    reason_step = next(
+        step for step in data["session"]["reasoning_steps"]
+        if step["stage"] == "reason"
+    )
+
+    assert decision["decision_type"] == "evidence_required_before_final_decision"
+    assert decision["confidence"] == "low"
+    assert decision["safety_position"] == "conservative"
+    assert decision["conflict_blocking"] is True
+    assert len(decision["unresolved_conflicts"]) >= 1
+
+    assert reason_step["data"]["final_conclusion_allowed"] is False
+    assert reason_step["data"]["conflict_blocking"] is True
+    assert len(reason_step["data"]["unresolved_conflicts"]) >= 1
+
+    assert decision["required_next_evidence"] == []
