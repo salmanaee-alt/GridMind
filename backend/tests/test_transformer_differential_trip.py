@@ -170,3 +170,49 @@ def test_transformer_response_uses_top_ranked_hypothesis_not_most_likely():
     assert "top_ranked_hypothesis" in decision
     assert "top_ranked_hypothesis" in report
     assert "ranked_hypotheses" in report
+
+
+def test_transformer_content_reasoning_ranks_internal_fault_high():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "No inrush signature observed",
+        "notes": "Relay target shows differential operation. DGA abnormal. No inrush signature observed."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    session = data["session"]
+
+    top_ranked = session["decisions"][0]["top_ranked_hypothesis"]
+
+    assert top_ranked["hypothesis"] == "Internal transformer fault"
+    assert top_ranked["confidence"] == "high"
+    assert top_ranked["source"] == "Transformer Reasoning v0.3"
+
+    assert "DGA status is abnormal" in top_ranked["supporting_evidence"]
+    assert "COMTRADE summary does not indicate inrush" in top_ranked["supporting_evidence"]
+
+    assert session["decisions"][0]["decision_type"] == "evidence_required_before_final_decision"
