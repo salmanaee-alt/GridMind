@@ -134,3 +134,39 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert hypothesis["confidence"] in ["low", "medium", "high"]
         assert isinstance(hypothesis["supporting_evidence"], list)
         assert isinstance(hypothesis["missing_evidence"], list)
+
+
+def test_transformer_response_uses_top_ranked_hypothesis_not_most_likely():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": ["Relay event report"],
+        "missing_data": [],
+        "comtrade_available": False,
+        "dga_available": False,
+        "buchholz_alarm": None,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "notes": "No smoke reported. Initial site inspection pending."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    session = data["session"]
+
+    response_as_text = str(data)
+
+    assert "top_ranked_hypothesis" in response_as_text
+    assert "most_likely_hypothesis" not in response_as_text
+
+    decision = session["decisions"][0]
+    report = session["reports"][0]
+
+    assert "top_ranked_hypothesis" in decision
+    assert "top_ranked_hypothesis" in report
+    assert "ranked_hypotheses" in report
