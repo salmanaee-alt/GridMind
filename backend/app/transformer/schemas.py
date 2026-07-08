@@ -18,6 +18,9 @@ class TransformerDifferentialTripRequest(BaseModel):
                 "buchholz_alarm": None,
                 "oil_temperature_c": 72,
                 "load_percent": 65,
+                "relay_targets": ["87T differential operated"],
+                "dga_status": "not_available",
+                "comtrade_summary": "not_available",
                 "notes": "No smoke reported. Initial site inspection pending."
             }
         }
@@ -37,5 +40,9 @@ class TransformerDifferentialTripRequest(BaseModel):
 
     oil_temperature_c: float | None = Field(default=None)
     load_percent: float | None = Field(default=None)
+
+    relay_targets: list[str] = Field(default_factory=list)
+    dga_status: str | None = Field(default=None)
+    comtrade_summary: str | None = Field(default=None)
 
     notes: str | None = Field(default=None)

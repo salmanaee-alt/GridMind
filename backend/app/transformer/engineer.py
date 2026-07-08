@@ -81,6 +81,9 @@ class TransformerEngineer:
             dga_available=request.dga_available,
             oil_temperature_c=request.oil_temperature_c,
             load_percent=request.load_percent,
+            relay_targets=request.relay_targets,
+            dga_status=request.dga_status,
+            comtrade_summary=request.comtrade_summary,
         )
 
         session = EngineeringSession(
@@ -104,6 +107,9 @@ class TransformerEngineer:
             "buchholz_alarm": request.buchholz_alarm,
             "comtrade_available": request.comtrade_available,
             "dga_available": request.dga_available,
+            "relay_targets": request.relay_targets,
+            "dga_status": request.dga_status,
+            "comtrade_summary": request.comtrade_summary,
             "notes": notes,
             "initial_safety_position": knowledge["initial_safety_position"],
             "available_evidence": available_evidence,
@@ -119,7 +125,7 @@ class TransformerEngineer:
                 "missing_evidence": evaluation["missing_evidence"],
                 "risk": evaluation["risk"],
                 "recommended_next_action": evaluation["recommended_next_action"],
-                "source": "Transformer Reasoning v0.2",
+                "source": "Transformer Reasoning v0.3",
             })
 
         brain = EngineeringBrain()

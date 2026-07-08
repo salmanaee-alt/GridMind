@@ -1,6 +1,13 @@
 ﻿from __future__ import annotations
 
 
+def normalize_text(value: str | None) -> str:
+    if value is None:
+        return ""
+
+    return value.strip().lower()
+
+
 def evaluate_differential_trip_hypotheses(
     available_evidence: list[str],
     missing_required_evidence: list[str],
@@ -9,17 +16,42 @@ def evaluate_differential_trip_hypotheses(
     dga_available: bool,
     oil_temperature_c: float | None,
     load_percent: float | None,
+    relay_targets: list[str] | None = None,
+    dga_status: str | None = None,
+    comtrade_summary: str | None = None,
 ) -> list[dict]:
     available = set(available_evidence)
     missing = set(missing_required_evidence)
+
+    relay_targets = relay_targets or []
+    relay_targets_text = " ".join(relay_targets).lower()
+    dga_status_text = normalize_text(dga_status)
+    comtrade_text = normalize_text(comtrade_summary)
+
+    dga_abnormal = dga_status_text in ["abnormal", "critical", "alarm", "high_gas", "fault_gas_detected"]
+    dga_normal = dga_status_text in ["normal", "healthy"]
+
+    inrush_detected = "inrush" in comtrade_text and "no inrush" not in comtrade_text
+    no_inrush_detected = "no inrush" in comtrade_text or "inrush not observed" in comtrade_text
+
+    differential_operated = (
+        "87t" in relay_targets_text
+        or "differential" in relay_targets_text
+    )
 
     evaluations: list[dict] = []
 
     internal_supporting = []
     internal_missing = []
 
+    if differential_operated:
+        internal_supporting.append("Differential protection target indicates transformer differential operation")
+
     if "Differential relay targets" in available:
         internal_supporting.append("Differential relay targets available")
+
+    if dga_abnormal:
+        internal_supporting.append("DGA status is abnormal")
 
     if "DGA report" in available or dga_available:
         internal_supporting.append("DGA report available")
@@ -30,14 +62,17 @@ def evaluate_differential_trip_hypotheses(
     if oil_temperature_c is not None and oil_temperature_c >= 90:
         internal_supporting.append("High oil temperature observed")
 
+    if no_inrush_detected:
+        internal_supporting.append("COMTRADE summary does not indicate inrush")
+
     for item in ["COMTRADE waveform", "DGA report", "Buchholz relay status", "Visual inspection"]:
         if item in missing:
             internal_missing.append(item)
 
     internal_confidence = "low"
-    if buchholz_alarm is True and ("DGA report" in available or dga_available):
+    if dga_abnormal and differential_operated and no_inrush_detected:
         internal_confidence = "high"
-    elif internal_supporting:
+    elif dga_abnormal or buchholz_alarm is True or (differential_operated and no_inrush_detected):
         internal_confidence = "medium"
 
     evaluations.append({
@@ -58,12 +93,17 @@ def evaluate_differential_trip_hypotheses(
     if "COMTRADE waveform" in available or comtrade_available:
         external_supporting.append("COMTRADE waveform available")
 
+    if "ct saturation" in comtrade_text:
+        external_supporting.append("COMTRADE summary indicates possible CT saturation")
+
     for item in ["COMTRADE waveform", "HV/LV breaker status", "Differential relay targets"]:
         if item in missing:
             external_missing.append(item)
 
     external_confidence = "low"
-    if ("COMTRADE waveform" in available or comtrade_available) and "HV/LV breaker status" in available:
+    if "ct saturation" in comtrade_text:
+        external_confidence = "medium"
+    elif ("COMTRADE waveform" in available or comtrade_available) and "HV/LV breaker status" in available:
         external_confidence = "medium"
 
     evaluations.append({
@@ -81,12 +121,20 @@ def evaluate_differential_trip_hypotheses(
     if "Relay event report" in available:
         protection_supporting.append("Relay event report available")
 
+    if dga_normal:
+        protection_supporting.append("DGA status is normal")
+
+    if inrush_detected:
+        protection_supporting.append("COMTRADE summary indicates inrush, which may challenge differential protection logic")
+
     for item in ["Relay event report", "COMTRADE waveform", "Differential relay targets"]:
         if item in missing:
             protection_missing.append(item)
 
     protection_confidence = "low"
-    if "Relay event report" in available and ("COMTRADE waveform" in available or comtrade_available):
+    if "Relay event report" in available and inrush_detected:
+        protection_confidence = "medium"
+    elif "Relay event report" in available and ("COMTRADE waveform" in available or comtrade_available):
         protection_confidence = "medium"
 
     evaluations.append({
@@ -104,12 +152,17 @@ def evaluate_differential_trip_hypotheses(
     if "Differential relay targets" in available:
         ct_supporting.append("Differential relay targets available")
 
+    if "ct circuit" in comtrade_text or "ct issue" in comtrade_text:
+        ct_supporting.append("COMTRADE summary suggests CT circuit issue")
+
     for item in ["COMTRADE waveform", "Differential relay targets"]:
         if item in missing:
             ct_missing.append(item)
 
     ct_confidence = "low"
-    if "Differential relay targets" in available and ("COMTRADE waveform" in available or comtrade_available):
+    if "ct circuit" in comtrade_text or "ct issue" in comtrade_text:
+        ct_confidence = "medium"
+    elif "Differential relay targets" in available and ("COMTRADE waveform" in available or comtrade_available):
         ct_confidence = "medium"
 
     evaluations.append({
@@ -127,6 +180,9 @@ def evaluate_differential_trip_hypotheses(
     if "COMTRADE waveform" in available or comtrade_available:
         inrush_supporting.append("COMTRADE waveform available")
 
+    if inrush_detected:
+        inrush_supporting.append("COMTRADE summary indicates inrush")
+
     if load_percent is not None and load_percent <= 10:
         inrush_supporting.append("Low load condition may support energization/inrush scenario")
 
@@ -135,8 +191,10 @@ def evaluate_differential_trip_hypotheses(
             inrush_missing.append(item)
 
     inrush_confidence = "low"
-    if ("COMTRADE waveform" in available or comtrade_available) and load_percent is not None and load_percent <= 10:
+    if inrush_detected:
         inrush_confidence = "medium"
+    if inrush_detected and load_percent is not None and load_percent <= 10:
+        inrush_confidence = "high"
 
     evaluations.append({
         "hypothesis": "Inrush or abnormal energization condition",

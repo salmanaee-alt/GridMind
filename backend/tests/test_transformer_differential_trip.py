@@ -129,7 +129,7 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert "missing_evidence" in hypothesis
         assert "risk" in hypothesis
         assert "recommended_next_action" in hypothesis
-        assert hypothesis["source"] == "Transformer Reasoning v0.2"
+        assert hypothesis["source"] == "Transformer Reasoning v0.3"
 
         assert hypothesis["confidence"] in ["low", "medium", "high"]
         assert isinstance(hypothesis["supporting_evidence"], list)
