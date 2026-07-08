@@ -69,6 +69,11 @@ class TransformerEngineer:
 
         available_evidence = sorted(list(known_available))
 
+        evidence_metadata = [
+            metadata.model_dump()
+            for metadata in request.evidence_metadata
+        ]
+
         hypothesis_evaluations = evaluate_differential_trip_hypotheses(
             available_evidence=available_evidence,
             missing_required_evidence=missing_required_evidence,
@@ -106,6 +111,7 @@ class TransformerEngineer:
             "relay_targets": request.relay_targets,
             "dga_status": request.dga_status,
             "comtrade_summary": request.comtrade_summary,
+            "evidence_metadata": evidence_metadata,
             "notes": notes,
             "initial_safety_position": knowledge["initial_safety_position"],
             "available_evidence": available_evidence,

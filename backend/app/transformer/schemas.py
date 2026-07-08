@@ -25,6 +25,43 @@ COMTRADESummary = Literal[
     "unknown",
 ]
 
+EvidenceSourceType = Literal[
+    "relay",
+    "comtrade",
+    "lab",
+    "field_inspection",
+    "operator",
+    "scada",
+    "maintenance",
+    "unknown",
+]
+
+EvidenceTimestampRelation = Literal[
+    "before_event",
+    "during_event",
+    "after_event",
+    "not_applicable",
+    "unknown",
+]
+
+
+class EvidenceMetadata(BaseModel):
+    evidence_name: str = Field(
+        description="Name of the evidence item, such as DGA report or COMTRADE waveform."
+    )
+    source_type: EvidenceSourceType = Field(
+        default="unknown",
+        description="Source category of the evidence."
+    )
+    timestamp_relation: EvidenceTimestampRelation = Field(
+        default="unknown",
+        description="Whether the evidence was captured before, during, or after the event."
+    )
+    verified: bool = Field(
+        default=False,
+        description="Whether this evidence has been verified by an engineer, trusted system, or official record."
+    )
+
 
 class TransformerDifferentialTripRequest(BaseModel):
     model_config = ConfigDict(
@@ -52,6 +89,32 @@ class TransformerDifferentialTripRequest(BaseModel):
                 "relay_targets": ["87T differential operated"],
                 "dga_status": "abnormal",
                 "comtrade_summary": "no_inrush",
+                "evidence_metadata": [
+                    {
+                        "evidence_name": "Relay event report",
+                        "source_type": "relay",
+                        "timestamp_relation": "during_event",
+                        "verified": True
+                    },
+                    {
+                        "evidence_name": "COMTRADE waveform",
+                        "source_type": "comtrade",
+                        "timestamp_relation": "during_event",
+                        "verified": True
+                    },
+                    {
+                        "evidence_name": "DGA report",
+                        "source_type": "lab",
+                        "timestamp_relation": "after_event",
+                        "verified": True
+                    },
+                    {
+                        "evidence_name": "Visual inspection",
+                        "source_type": "field_inspection",
+                        "timestamp_relation": "after_event",
+                        "verified": False
+                    }
+                ],
                 "notes": "Relay target shows differential operation. DGA abnormal. No inrush signature observed."
             }
         }
@@ -75,5 +138,7 @@ class TransformerDifferentialTripRequest(BaseModel):
     relay_targets: list[str] = Field(default_factory=list)
     dga_status: DGAStatus = Field(default="not_available")
     comtrade_summary: COMTRADESummary = Field(default="not_available")
+
+    evidence_metadata: list[EvidenceMetadata] = Field(default_factory=list)
 
     notes: str | None = Field(default=None)

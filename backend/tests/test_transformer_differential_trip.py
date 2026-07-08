@@ -372,3 +372,68 @@ def test_transformer_conflict_blocks_final_decision_even_with_complete_evidence(
     assert len(reason_step["data"]["unresolved_conflicts"]) >= 1
 
     assert decision["required_next_evidence"] == []
+
+
+def test_transformer_evidence_metadata_is_reported_in_observation():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "evidence_metadata": [
+            {
+                "evidence_name": "Relay event report",
+                "source_type": "relay",
+                "timestamp_relation": "during_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "COMTRADE waveform",
+                "source_type": "comtrade",
+                "timestamp_relation": "during_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "DGA report",
+                "source_type": "lab",
+                "timestamp_relation": "after_event",
+                "verified": True
+            }
+        ],
+        "notes": "Evidence metadata is provided for v0.6 validation."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    observation = data["session"]["observations"][0]
+
+    assert "evidence_metadata" in observation
+    assert len(observation["evidence_metadata"]) == 3
+
+    relay_metadata = observation["evidence_metadata"][0]
+
+    assert relay_metadata["evidence_name"] == "Relay event report"
+    assert relay_metadata["source_type"] == "relay"
+    assert relay_metadata["timestamp_relation"] == "during_event"
+    assert relay_metadata["verified"] is True
