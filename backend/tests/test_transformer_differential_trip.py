@@ -261,3 +261,60 @@ def test_transformer_content_reasoning_detects_evidence_conflict():
     assert internal_fault["confidence"] in ["low", "medium"]
     assert len(internal_fault["conflicts"]) >= 1
     assert internal_fault["conflicts"][0]["severity"] == "medium"
+
+
+def test_transformer_evidence_quality_scoring_is_reported():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "normal",
+        "comtrade_summary": "no_inrush",
+        "notes": "Relay target shows differential operation, but DGA is normal."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+    reason_step = next(
+        step for step in data["session"]["reasoning_steps"]
+        if step["stage"] == "reason"
+    )
+
+    assert "evidence_quality" in decision
+    assert "evidence_quality" in report
+    assert "evidence_quality" in reason_step["data"]
+
+    evidence_quality = decision["evidence_quality"]
+
+    assert "quality_score" in evidence_quality
+    assert "quality_level" in evidence_quality
+    assert "completeness_score" in evidence_quality
+    assert "directness_score" in evidence_quality
+    assert "conflict_penalty" in evidence_quality
+    assert "quality_notes" in evidence_quality
+
+    assert evidence_quality["quality_level"] in ["low", "medium", "high"]
+    assert evidence_quality["unresolved_conflict_count"] >= 1
+    assert evidence_quality["conflict_penalty"] > 0

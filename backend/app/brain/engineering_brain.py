@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.brain.engineering_session import EngineeringSession, InvestigationStatus
+from app.transformer.evidence_quality import score_evidence_quality
 
 
 @dataclass
@@ -40,6 +41,7 @@ class EngineeringBrain:
             },
         })
 
+        available_evidence = self._extract_available_evidence(session)
         missing_required_evidence = self._extract_missing_required_evidence(session)
 
         session.set_status(InvestigationStatus.UNDERSTANDING)
@@ -48,6 +50,7 @@ class EngineeringBrain:
             "summary": "Built initial engineering context from observations.",
             "data": {
                 "context_status": "initial",
+                "available_evidence_count": len(available_evidence),
                 "has_missing_required_evidence": bool(missing_required_evidence),
             },
         })
@@ -66,6 +69,7 @@ class EngineeringBrain:
             "summary": validation_summary,
             "data": {
                 "data_quality": data_quality,
+                "available_evidence": available_evidence,
                 "missing_required_evidence": missing_required_evidence,
             },
         })
@@ -98,6 +102,12 @@ class EngineeringBrain:
 
         unresolved_conflicts = self._extract_unresolved_conflicts(ranked_hypotheses)
 
+        evidence_quality = score_evidence_quality(
+            available_evidence=available_evidence,
+            missing_required_evidence=combined_missing_evidence,
+            unresolved_conflicts=unresolved_conflicts,
+        )
+
         final_conclusion_allowed = not bool(
             combined_missing_evidence or unresolved_conflicts
         )
@@ -105,14 +115,15 @@ class EngineeringBrain:
         session.set_status(InvestigationStatus.REASONING)
         session.add_reasoning_step({
             "stage": "reason",
-            "summary": "Applied preliminary engineering reasoning using evidence sufficiency, hypothesis evaluations, and evidence conflicts.",
+            "summary": "Applied preliminary engineering reasoning using evidence sufficiency, hypothesis evaluations, evidence conflicts, and evidence quality.",
             "data": {
-                "reasoning_mode": "hypothesis_aware_conflict_aware_preliminary_reasoning",
+                "reasoning_mode": "hypothesis_aware_conflict_aware_quality_aware_preliminary_reasoning",
                 "final_conclusion_allowed": final_conclusion_allowed,
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "combined_missing_evidence": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
                 "conflict_blocking": bool(unresolved_conflicts),
+                "evidence_quality": evidence_quality,
             },
         })
 
@@ -135,13 +146,14 @@ class EngineeringBrain:
 
         session.add_reasoning_step({
             "stage": "evaluate",
-            "summary": "Evaluated confidence, risk, missing evidence, evidence conflicts, and ranked hypotheses.",
+            "summary": "Evaluated confidence, risk, missing evidence, evidence conflicts, evidence quality, and ranked hypotheses.",
             "data": {
                 "confidence": evaluation_confidence,
                 "risk": evaluation_risk,
                 "missing_data": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
                 "conflict_blocking": bool(unresolved_conflicts),
+                "evidence_quality": evidence_quality,
                 "ranked_hypotheses": ranked_hypotheses,
             },
         })
@@ -158,28 +170,31 @@ class EngineeringBrain:
                 "required_next_evidence": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
                 "conflict_blocking": bool(unresolved_conflicts),
+                "evidence_quality": evidence_quality,
             })
         else:
             session.add_decision({
                 "decision_type": "engineering_recommendation",
-                "decision": "A preliminary engineering recommendation can be issued based on the available evidence and current hypothesis ranking.",
+                "decision": "A preliminary engineering recommendation can be issued based on the available evidence, current hypothesis ranking, and evidence quality.",
                 "confidence": evaluation_confidence,
                 "safety_position": "controlled",
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "required_next_evidence": [],
                 "unresolved_conflicts": [],
                 "conflict_blocking": False,
+                "evidence_quality": evidence_quality,
             })
 
         session.add_reasoning_step({
             "stage": "decide",
-            "summary": "Produced an engineering decision using evidence sufficiency, hypothesis ranking, and conflict blocking.",
+            "summary": "Produced an engineering decision using evidence sufficiency, hypothesis ranking, conflict blocking, and evidence quality.",
             "data": {
                 "decision_count": len(session.decisions),
                 "decision_type": session.decisions[-1]["decision_type"] if session.decisions else None,
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "unresolved_conflicts": unresolved_conflicts,
                 "conflict_blocking": bool(unresolved_conflicts),
+                "evidence_quality": evidence_quality,
             },
         })
 
@@ -196,7 +211,8 @@ class EngineeringBrain:
         else:
             report_summary = (
                 "The investigation has sufficient evidence for a preliminary engineering recommendation. "
-                "The recommendation remains subject to normal engineering review and operational approval."
+                "The recommendation remains subject to evidence quality, normal engineering review, "
+                "and operational approval."
             )
             report_confidence = evaluation_confidence
 
@@ -209,11 +225,12 @@ class EngineeringBrain:
             "next_required_evidence": combined_missing_evidence,
             "unresolved_conflicts": unresolved_conflicts,
             "conflict_blocking": bool(unresolved_conflicts),
+            "evidence_quality": evidence_quality,
         })
 
         session.add_reasoning_step({
             "stage": "explain",
-            "summary": "Generated an auditable preliminary engineering explanation with hypothesis ranking and conflict status.",
+            "summary": "Generated an auditable preliminary engineering explanation with hypothesis ranking, conflict status, and evidence quality.",
             "data": {
                 "report_count": len(session.reports),
             },
@@ -231,6 +248,16 @@ class EngineeringBrain:
         session.set_status(InvestigationStatus.COMPLETED)
 
         return session
+
+    def _extract_available_evidence(self, session: EngineeringSession) -> list[str]:
+        available: list[str] = []
+
+        for observation in session.observations:
+            for item in observation.get("available_evidence", []):
+                if item not in available:
+                    available.append(item)
+
+        return available
 
     def _extract_missing_required_evidence(self, session: EngineeringSession) -> list[str]:
         missing: list[str] = []
