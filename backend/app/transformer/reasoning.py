@@ -20,59 +20,87 @@ def evaluate_differential_trip_hypotheses(
     dga_status: str | None = None,
     comtrade_summary: str | None = None,
 ) -> list[dict]:
-    available = set(available_evidence)
-    missing = set(missing_required_evidence)
-
-    relay_targets = relay_targets or []
-    relay_targets_text = " ".join(relay_targets).lower()
+    relay_targets_text = " ".join(relay_targets or []).lower()
     dga_status_text = normalize_text(dga_status)
     comtrade_text = normalize_text(comtrade_summary)
 
-    dga_abnormal = dga_status_text in ["abnormal", "critical", "alarm", "high_gas", "fault_gas_detected"]
+    dga_abnormal = dga_status_text in [
+        "abnormal",
+        "critical",
+        "alarm",
+        "high_gas",
+        "fault_gas_detected",
+    ]
     dga_normal = dga_status_text == "normal"
 
     inrush_detected = comtrade_text == "inrush_detected"
     no_inrush_detected = comtrade_text == "no_inrush"
+    ct_saturation_detected = comtrade_text == "ct_saturation"
+    ct_circuit_issue_detected = comtrade_text == "ct_circuit_issue"
 
     differential_operated = (
         "87t" in relay_targets_text
         or "differential" in relay_targets_text
     )
 
+    conflicts: list[dict] = []
+
+    if dga_normal and differential_operated and no_inrush_detected:
+        conflicts.append({
+            "conflict": "Differential operation with no inrush indication, but DGA status is normal.",
+            "severity": "medium",
+            "recommended_verification": "Verify DGA sampling time, relay targets, COMTRADE waveform, and visual inspection before increasing internal fault confidence.",
+        })
+
+    if dga_abnormal and inrush_detected:
+        conflicts.append({
+            "conflict": "DGA is abnormal, but COMTRADE indicates inrush.",
+            "severity": "medium",
+            "recommended_verification": "Confirm whether the event occurred during energization and review harmonic restraint operation.",
+        })
+
     evaluations: list[dict] = []
 
-    internal_supporting = []
-    internal_missing = []
+    internal_supporting: list[str] = []
 
     if differential_operated:
-        internal_supporting.append("Differential protection target indicates transformer differential operation")
-
-    if "Differential relay targets" in available:
-        internal_supporting.append("Differential relay targets available")
+        internal_supporting.append("Differential relay target indicates transformer differential operation.")
 
     if dga_abnormal:
-        internal_supporting.append("DGA status is abnormal")
-
-    if "DGA report" in available or dga_available:
-        internal_supporting.append("DGA report available")
+        internal_supporting.append("DGA status is abnormal.")
 
     if buchholz_alarm is True:
-        internal_supporting.append("Buchholz alarm is active")
-
-    if oil_temperature_c is not None and oil_temperature_c >= 90:
-        internal_supporting.append("High oil temperature observed")
+        internal_supporting.append("Buchholz relay alarm is present.")
 
     if no_inrush_detected:
-        internal_supporting.append("COMTRADE summary does not indicate inrush")
+        internal_supporting.append("COMTRADE summary does not indicate inrush.")
 
-    for item in ["COMTRADE waveform", "DGA report", "Buchholz relay status", "Visual inspection"]:
-        if item in missing:
-            internal_missing.append(item)
+    internal_missing = [
+        item
+        for item in [
+            "DGA report",
+            "Buchholz relay status",
+            "Visual inspection",
+            "COMTRADE waveform",
+        ]
+        if item in missing_required_evidence
+    ]
 
-    internal_confidence = "low"
     if dga_abnormal and differential_operated and no_inrush_detected:
         internal_confidence = "high"
     elif dga_abnormal or buchholz_alarm is True or (differential_operated and no_inrush_detected):
+        internal_confidence = "medium"
+    else:
+        internal_confidence = "low"
+
+    internal_conflicts = [
+        conflict
+        for conflict in conflicts
+        if "DGA status is normal" in conflict["conflict"]
+        or "DGA is abnormal" in conflict["conflict"]
+    ]
+
+    if internal_confidence == "high" and internal_conflicts:
         internal_confidence = "medium"
 
     evaluations.append({
@@ -80,129 +108,130 @@ def evaluate_differential_trip_hypotheses(
         "confidence": internal_confidence,
         "supporting_evidence": internal_supporting,
         "missing_evidence": internal_missing,
+        "conflicts": internal_conflicts,
         "risk": "high",
-        "recommended_next_action": "Review COMTRADE, DGA, Buchholz status, and visual inspection before any re-energization.",
+        "recommended_next_action": "Review COMTRADE, DGA, Buchholz status, visual inspection, and any detected evidence conflicts before re-energization.",
     })
 
-    external_supporting = []
-    external_missing = []
+    external_supporting: list[str] = []
 
-    if "HV/LV breaker status" in available:
-        external_supporting.append("HV/LV breaker status available")
+    if ct_saturation_detected:
+        external_supporting.append("COMTRADE summary indicates CT saturation.")
 
-    if "COMTRADE waveform" in available or comtrade_available:
-        external_supporting.append("COMTRADE waveform available")
+    if "HV/LV breaker status" not in missing_required_evidence:
+        external_supporting.append("Breaker status is available for external fault review.")
 
-    if comtrade_text == "ct_saturation":
-        external_supporting.append("COMTRADE summary indicates possible CT saturation")
+    external_missing = [
+        item
+        for item in [
+            "COMTRADE waveform",
+            "HV/LV breaker status",
+        ]
+        if item in missing_required_evidence
+    ]
 
-    for item in ["COMTRADE waveform", "HV/LV breaker status", "Differential relay targets"]:
-        if item in missing:
-            external_missing.append(item)
-
-    external_confidence = "low"
-    if comtrade_text == "ct_saturation":
-        external_confidence = "medium"
-    elif ("COMTRADE waveform" in available or comtrade_available) and "HV/LV breaker status" in available:
-        external_confidence = "medium"
+    external_confidence = "medium" if ct_saturation_detected else "low"
 
     evaluations.append({
         "hypothesis": "External fault with CT saturation",
         "confidence": external_confidence,
         "supporting_evidence": external_supporting,
         "missing_evidence": external_missing,
-        "risk": "medium_to_high",
-        "recommended_next_action": "Use COMTRADE and breaker status to distinguish internal fault from external through-fault with CT saturation.",
+        "conflicts": [],
+        "risk": "medium",
+        "recommended_next_action": "Review through-fault records, CT saturation signs, breaker status, and upstream/downstream protection operation.",
     })
 
-    protection_supporting = []
-    protection_missing = []
+    protection_supporting: list[str] = []
 
-    if "Relay event report" in available:
-        protection_supporting.append("Relay event report available")
+    if "Relay event report" in available_evidence:
+        protection_supporting.append("Relay event report is available for settings and logic review.")
 
-    if dga_normal:
-        protection_supporting.append("DGA status is normal")
-
-    if inrush_detected:
-        protection_supporting.append("COMTRADE summary indicates inrush, which may challenge differential protection logic")
-
-    for item in ["Relay event report", "COMTRADE waveform", "Differential relay targets"]:
-        if item in missing:
-            protection_missing.append(item)
+    protection_missing = [
+        item
+        for item in [
+            "Relay event report",
+            "Recent maintenance history",
+        ]
+        if item in missing_required_evidence
+    ]
 
     protection_confidence = "low"
-    if "Relay event report" in available and inrush_detected:
-        protection_confidence = "medium"
-    elif "Relay event report" in available and ("COMTRADE waveform" in available or comtrade_available):
-        protection_confidence = "medium"
 
     evaluations.append({
         "hypothesis": "Protection misoperation",
         "confidence": protection_confidence,
         "supporting_evidence": protection_supporting,
         "missing_evidence": protection_missing,
+        "conflicts": [],
         "risk": "medium",
-        "recommended_next_action": "Validate relay settings, event report, and waveform alignment before concluding protection misoperation.",
+        "recommended_next_action": "Review relay settings, recent setting changes, test records, and event report sequence.",
     })
 
-    ct_supporting = []
-    ct_missing = []
+    ct_supporting: list[str] = []
 
-    if "Differential relay targets" in available:
-        ct_supporting.append("Differential relay targets available")
+    if ct_circuit_issue_detected:
+        ct_supporting.append("COMTRADE summary indicates possible CT circuit issue.")
 
-    if comtrade_text == "ct_circuit_issue":
-        ct_supporting.append("COMTRADE summary suggests CT circuit issue")
+    ct_missing = [
+        item
+        for item in [
+            "COMTRADE waveform",
+            "Recent maintenance history",
+        ]
+        if item in missing_required_evidence
+    ]
 
-    for item in ["COMTRADE waveform", "Differential relay targets"]:
-        if item in missing:
-            ct_missing.append(item)
-
-    ct_confidence = "low"
-    if comtrade_text == "ct_circuit_issue":
-        ct_confidence = "medium"
-    elif "Differential relay targets" in available and ("COMTRADE waveform" in available or comtrade_available):
-        ct_confidence = "medium"
+    ct_confidence = "medium" if ct_circuit_issue_detected else "low"
 
     evaluations.append({
         "hypothesis": "CT circuit issue",
         "confidence": ct_confidence,
         "supporting_evidence": ct_supporting,
         "missing_evidence": ct_missing,
-        "risk": "medium_to_high",
-        "recommended_next_action": "Check CT secondary circuit, polarity, wiring, saturation indicators, and relay current inputs.",
+        "conflicts": [],
+        "risk": "medium",
+        "recommended_next_action": "Inspect CT secondary circuits, terminal tightness, test links, polarity, and recent maintenance records.",
     })
 
-    inrush_supporting = []
-    inrush_missing = []
-
-    if "COMTRADE waveform" in available or comtrade_available:
-        inrush_supporting.append("COMTRADE waveform available")
+    inrush_supporting: list[str] = []
 
     if inrush_detected:
-        inrush_supporting.append("COMTRADE summary indicates inrush")
+        inrush_supporting.append("COMTRADE summary indicates inrush.")
 
     if load_percent is not None and load_percent <= 10:
-        inrush_supporting.append("Low load condition may support energization/inrush scenario")
+        inrush_supporting.append("Low load before trip may indicate energization or abnormal switching condition.")
 
-    for item in ["COMTRADE waveform", "Recent maintenance history"]:
-        if item in missing:
-            inrush_missing.append(item)
+    inrush_missing = [
+        item
+        for item in [
+            "COMTRADE waveform",
+            "Load before trip",
+        ]
+        if item in missing_required_evidence
+    ]
 
-    inrush_confidence = "low"
     if inrush_detected:
-        inrush_confidence = "medium"
-    if inrush_detected and load_percent is not None and load_percent <= 10:
         inrush_confidence = "high"
+    elif load_percent is not None and load_percent <= 10:
+        inrush_confidence = "medium"
+    else:
+        inrush_confidence = "low"
+
+    inrush_conflicts = [
+        conflict
+        for conflict in conflicts
+        if "COMTRADE indicates inrush" in conflict["conflict"]
+    ]
 
     evaluations.append({
         "hypothesis": "Inrush or abnormal energization condition",
         "confidence": inrush_confidence,
         "supporting_evidence": inrush_supporting,
         "missing_evidence": inrush_missing,
+        "conflicts": inrush_conflicts,
         "risk": "medium",
-        "recommended_next_action": "Review energization timing, harmonic restraint behavior, and recent switching or maintenance history.",
+        "recommended_next_action": "Review energization timing, harmonic restraint, residual flux possibility, and COMTRADE waveform.",
     })
 
     return evaluations

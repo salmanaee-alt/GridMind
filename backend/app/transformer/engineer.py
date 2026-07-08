@@ -119,6 +119,7 @@ class TransformerEngineer:
                 "confidence": evaluation["confidence"],
                 "supporting_evidence": evaluation["supporting_evidence"],
                 "missing_evidence": evaluation["missing_evidence"],
+                "conflicts": evaluation.get("conflicts", []),
                 "risk": evaluation["risk"],
                 "recommended_next_action": evaluation["recommended_next_action"],
                 "source": "Transformer Reasoning v0.3",

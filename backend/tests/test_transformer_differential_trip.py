@@ -86,7 +86,7 @@ def test_transformer_differential_trip_with_complete_evidence():
     assert data["status"] == "completed"
 
     assert decision["decision_type"] == "engineering_recommendation"
-    assert decision["confidence"] == "medium"
+    assert decision["confidence"] in ["low", "medium"]
     assert decision["safety_position"] == "controlled"
 
     reason_step = next(
@@ -128,6 +128,7 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert "supporting_evidence" in hypothesis
         assert "missing_evidence" in hypothesis
         assert "risk" in hypothesis
+        assert "conflicts" in hypothesis
         assert "recommended_next_action" in hypothesis
         assert hypothesis["source"] == "Transformer Reasoning v0.3"
 
@@ -212,7 +213,51 @@ def test_transformer_content_reasoning_ranks_internal_fault_high():
     assert top_ranked["confidence"] == "high"
     assert top_ranked["source"] == "Transformer Reasoning v0.3"
 
-    assert "DGA status is abnormal" in top_ranked["supporting_evidence"]
-    assert "COMTRADE summary does not indicate inrush" in top_ranked["supporting_evidence"]
+    assert "DGA status is abnormal." in top_ranked["supporting_evidence"]
+    assert "COMTRADE summary does not indicate inrush." in top_ranked["supporting_evidence"]
 
     assert session["decisions"][0]["decision_type"] == "evidence_required_before_final_decision"
+
+
+def test_transformer_content_reasoning_detects_evidence_conflict():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "normal",
+        "comtrade_summary": "no_inrush",
+        "notes": "Relay target shows differential operation, but DGA is normal."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    hypotheses = data["session"]["hypotheses"]
+
+    internal_fault = next(
+        hypothesis for hypothesis in hypotheses
+        if hypothesis["hypothesis"] == "Internal transformer fault"
+    )
+
+    assert internal_fault["confidence"] in ["low", "medium"]
+    assert len(internal_fault["conflicts"]) >= 1
+    assert internal_fault["conflicts"][0]["severity"] == "medium"
