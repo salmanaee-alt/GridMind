@@ -1,6 +1,29 @@
 ﻿from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
+
+
+DGAStatus = Literal[
+    "not_available",
+    "normal",
+    "abnormal",
+    "critical",
+    "alarm",
+    "high_gas",
+    "fault_gas_detected",
+]
+
+COMTRADESummary = Literal[
+    "not_available",
+    "inrush_detected",
+    "no_inrush",
+    "ct_saturation",
+    "ct_circuit_issue",
+    "normal_waveform",
+    "unknown",
+]
 
 
 class TransformerDifferentialTripRequest(BaseModel):
@@ -11,17 +34,25 @@ class TransformerDifferentialTripRequest(BaseModel):
                 "voltage_level": "230/13.8 kV",
                 "event_description": "Transformer tripped by differential relay",
                 "relay_name": "87T",
-                "available_data": ["Relay event report"],
+                "available_data": [
+                    "Relay event report",
+                    "COMTRADE waveform",
+                    "Differential relay targets",
+                    "DGA report",
+                    "Buchholz relay status",
+                    "Oil temperature",
+                    "Load before trip"
+                ],
                 "missing_data": [],
-                "comtrade_available": False,
-                "dga_available": False,
-                "buchholz_alarm": None,
+                "comtrade_available": True,
+                "dga_available": True,
+                "buchholz_alarm": False,
                 "oil_temperature_c": 72,
                 "load_percent": 65,
                 "relay_targets": ["87T differential operated"],
-                "dga_status": "not_available",
-                "comtrade_summary": "not_available",
-                "notes": "No smoke reported. Initial site inspection pending."
+                "dga_status": "abnormal",
+                "comtrade_summary": "no_inrush",
+                "notes": "Relay target shows differential operation. DGA abnormal. No inrush signature observed."
             }
         }
     )
@@ -42,7 +73,7 @@ class TransformerDifferentialTripRequest(BaseModel):
     load_percent: float | None = Field(default=None)
 
     relay_targets: list[str] = Field(default_factory=list)
-    dga_status: str | None = Field(default=None)
-    comtrade_summary: str | None = Field(default=None)
+    dga_status: DGAStatus = Field(default="not_available")
+    comtrade_summary: COMTRADESummary = Field(default="not_available")
 
     notes: str | None = Field(default=None)

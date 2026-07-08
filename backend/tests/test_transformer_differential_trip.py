@@ -195,7 +195,7 @@ def test_transformer_content_reasoning_ranks_internal_fault_high():
         "load_percent": 65,
         "relay_targets": ["87T differential operated"],
         "dga_status": "abnormal",
-        "comtrade_summary": "No inrush signature observed",
+        "comtrade_summary": "no_inrush",
         "notes": "Relay target shows differential operation. DGA abnormal. No inrush signature observed."
     }
 

@@ -29,10 +29,10 @@ def evaluate_differential_trip_hypotheses(
     comtrade_text = normalize_text(comtrade_summary)
 
     dga_abnormal = dga_status_text in ["abnormal", "critical", "alarm", "high_gas", "fault_gas_detected"]
-    dga_normal = dga_status_text in ["normal", "healthy"]
+    dga_normal = dga_status_text == "normal"
 
-    inrush_detected = "inrush" in comtrade_text and "no inrush" not in comtrade_text
-    no_inrush_detected = "no inrush" in comtrade_text or "inrush not observed" in comtrade_text
+    inrush_detected = comtrade_text == "inrush_detected"
+    no_inrush_detected = comtrade_text == "no_inrush"
 
     differential_operated = (
         "87t" in relay_targets_text
@@ -93,7 +93,7 @@ def evaluate_differential_trip_hypotheses(
     if "COMTRADE waveform" in available or comtrade_available:
         external_supporting.append("COMTRADE waveform available")
 
-    if "ct saturation" in comtrade_text:
+    if comtrade_text == "ct_saturation":
         external_supporting.append("COMTRADE summary indicates possible CT saturation")
 
     for item in ["COMTRADE waveform", "HV/LV breaker status", "Differential relay targets"]:
@@ -101,7 +101,7 @@ def evaluate_differential_trip_hypotheses(
             external_missing.append(item)
 
     external_confidence = "low"
-    if "ct saturation" in comtrade_text:
+    if comtrade_text == "ct_saturation":
         external_confidence = "medium"
     elif ("COMTRADE waveform" in available or comtrade_available) and "HV/LV breaker status" in available:
         external_confidence = "medium"
@@ -152,7 +152,7 @@ def evaluate_differential_trip_hypotheses(
     if "Differential relay targets" in available:
         ct_supporting.append("Differential relay targets available")
 
-    if "ct circuit" in comtrade_text or "ct issue" in comtrade_text:
+    if comtrade_text == "ct_circuit_issue":
         ct_supporting.append("COMTRADE summary suggests CT circuit issue")
 
     for item in ["COMTRADE waveform", "Differential relay targets"]:
@@ -160,7 +160,7 @@ def evaluate_differential_trip_hypotheses(
             ct_missing.append(item)
 
     ct_confidence = "low"
-    if "ct circuit" in comtrade_text or "ct issue" in comtrade_text:
+    if comtrade_text == "ct_circuit_issue":
         ct_confidence = "medium"
     elif "Differential relay targets" in available and ("COMTRADE waveform" in available or comtrade_available):
         ct_confidence = "medium"

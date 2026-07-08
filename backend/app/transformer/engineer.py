@@ -16,10 +16,6 @@ def clean_text(value: str | None) -> str | None:
     if not cleaned:
         return None
 
-    # Temporary development guard to ignore Swagger default placeholder values.
-    if cleaned.lower() == "string":
-        return None
-
     return cleaned
 
 
