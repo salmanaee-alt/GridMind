@@ -130,7 +130,7 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert "risk" in hypothesis
         assert "conflicts" in hypothesis
         assert "recommended_next_action" in hypothesis
-        assert hypothesis["source"] == "Transformer Reasoning v0.8"
+        assert hypothesis["source"] == "Transformer Reasoning v0.9"
 
         assert hypothesis["confidence"] in ["low", "medium", "high"]
         assert isinstance(hypothesis["supporting_evidence"], list)
@@ -211,7 +211,7 @@ def test_transformer_content_reasoning_ranks_internal_fault_high():
 
     assert top_ranked["hypothesis"] == "Internal transformer fault"
     assert top_ranked["confidence"] == "high"
-    assert top_ranked["source"] == "Transformer Reasoning v0.8"
+    assert top_ranked["source"] == "Transformer Reasoning v0.9"
 
     assert "DGA status is abnormal." in top_ranked["supporting_evidence"]
     assert "COMTRADE summary does not indicate inrush." in top_ranked["supporting_evidence"]
