@@ -34,6 +34,14 @@ LOW_RELIABILITY_SOURCES = {
     "unknown",
 }
 
+TIMESTAMP_RELATION_SCORES = {
+    "during_event": 1.0,
+    "after_event": 0.8,
+    "before_event": 0.6,
+    "not_applicable": 0.5,
+    "unknown": 0.4,
+}
+
 
 def score_evidence_quality(
     available_evidence: list[str],
@@ -78,9 +86,9 @@ def score_evidence_quality(
             0.0,
             min(
                 1.0,
-                (0.50 * completeness_score)
-                + (0.35 * directness_score)
-                + (0.15 * metadata_score["metadata_score"])
+                (0.45 * completeness_score)
+                + (0.30 * directness_score)
+                + (0.25 * metadata_score["metadata_score"])
                 - conflict_penalty,
             ),
         ),
@@ -118,6 +126,7 @@ def score_evidence_quality(
         "metadata_score": metadata_score["metadata_score"],
         "verified_evidence_ratio": metadata_score["verified_evidence_ratio"],
         "source_reliability_score": metadata_score["source_reliability_score"],
+        "timestamp_relation_score": metadata_score["timestamp_relation_score"],
         "conflict_penalty": conflict_penalty,
         "available_direct_evidence": available_direct,
         "missing_required_evidence": missing_required_evidence,
@@ -149,20 +158,28 @@ def _score_metadata_quality(
 
     if not relevant_metadata:
         source_reliability_score = 0.0
+        timestamp_relation_score = 0.0
     else:
         source_scores = [
             _source_reliability_value(item.get("source_type", "unknown"))
             for item in relevant_metadata
         ]
+        timestamp_scores = [
+            _timestamp_relation_value(item.get("timestamp_relation", "unknown"))
+            for item in relevant_metadata
+        ]
+
         source_reliability_score = sum(source_scores) / len(source_scores)
+        timestamp_relation_score = sum(timestamp_scores) / len(timestamp_scores)
 
     metadata_score = round(
         max(
             0.0,
             min(
                 1.0,
-                (0.60 * verified_evidence_ratio)
-                + (0.40 * source_reliability_score),
+                (0.45 * verified_evidence_ratio)
+                + (0.35 * source_reliability_score)
+                + (0.20 * timestamp_relation_score),
             ),
         ),
         2,
@@ -187,10 +204,16 @@ def _score_metadata_quality(
     elif source_reliability_score > 0:
         notes.append("Evidence sources have mixed or moderate reliability.")
 
+    if timestamp_relation_score >= 0.75:
+        notes.append("Evidence timing is strongly aligned with the event.")
+    elif timestamp_relation_score > 0:
+        notes.append("Evidence timing has mixed or moderate alignment with the event.")
+
     return {
         "metadata_score": metadata_score,
         "verified_evidence_ratio": round(verified_evidence_ratio, 2),
         "source_reliability_score": round(source_reliability_score, 2),
+        "timestamp_relation_score": round(timestamp_relation_score, 2),
         "metadata_quality_notes": notes,
     }
 
@@ -206,3 +229,7 @@ def _source_reliability_value(source_type: str) -> float:
         return 0.4
 
     return 0.4
+
+
+def _timestamp_relation_value(timestamp_relation: str) -> float:
+    return TIMESTAMP_RELATION_SCORES.get(timestamp_relation, 0.4)

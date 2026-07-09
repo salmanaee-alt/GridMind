@@ -619,3 +619,64 @@ def test_transformer_accepts_evidence_metadata_for_flag_added_evidence():
     assert "Buchholz relay status" in metadata_names
     assert "Oil temperature" in metadata_names
     assert "Load before trip" in metadata_names
+
+
+def test_transformer_timestamp_relation_aware_evidence_quality_is_reported():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "Differential relay targets"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "evidence_metadata": [
+            {
+                "evidence_name": "Relay event report",
+                "source_type": "relay",
+                "timestamp_relation": "during_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "COMTRADE waveform",
+                "source_type": "comtrade",
+                "timestamp_relation": "during_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "DGA report",
+                "source_type": "lab",
+                "timestamp_relation": "after_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "Load before trip",
+                "source_type": "scada",
+                "timestamp_relation": "before_event",
+                "verified": True
+            }
+        ],
+        "notes": "Timestamp-aware evidence quality validation."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    evidence_quality = decision["evidence_quality"]
+
+    assert "timestamp_relation_score" in evidence_quality
+    assert evidence_quality["timestamp_relation_score"] > 0
+    assert "Evidence timing" in " ".join(evidence_quality["metadata_quality_notes"])
