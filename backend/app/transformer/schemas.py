@@ -47,7 +47,7 @@ EvidenceTimestampRelation = Literal[
 
 class EvidenceMetadata(BaseModel):
     evidence_name: str = Field(
-        description="Name of the evidence item. It must match an item in available_data or missing_data."
+        description="Name of the evidence item. It must match an item in available_data, missing_data, or evidence added by request flags."
     )
     source_type: EvidenceSourceType = Field(
         default="unknown",
@@ -73,12 +73,7 @@ class TransformerDifferentialTripRequest(BaseModel):
                 "relay_name": "87T",
                 "available_data": [
                     "Relay event report",
-                    "COMTRADE waveform",
-                    "Differential relay targets",
-                    "DGA report",
-                    "Buchholz relay status",
-                    "Oil temperature",
-                    "Load before trip"
+                    "Differential relay targets"
                 ],
                 "missing_data": [
                     "Visual inspection"
@@ -149,6 +144,21 @@ class TransformerDifferentialTripRequest(BaseModel):
     def validate_evidence_metadata_names(self) -> "TransformerDifferentialTripRequest":
         allowed_evidence_names = set(self.available_data + self.missing_data)
 
+        if self.comtrade_available:
+            allowed_evidence_names.add("COMTRADE waveform")
+
+        if self.dga_available:
+            allowed_evidence_names.add("DGA report")
+
+        if self.buchholz_alarm is not None:
+            allowed_evidence_names.add("Buchholz relay status")
+
+        if self.oil_temperature_c is not None:
+            allowed_evidence_names.add("Oil temperature")
+
+        if self.load_percent is not None:
+            allowed_evidence_names.add("Load before trip")
+
         invalid_metadata_names = [
             item.evidence_name
             for item in self.evidence_metadata
@@ -157,7 +167,7 @@ class TransformerDifferentialTripRequest(BaseModel):
 
         if invalid_metadata_names:
             raise ValueError(
-                "Each evidence_metadata.evidence_name must match an item in available_data or missing_data. "
+                "Each evidence_metadata.evidence_name must match an item in available_data, missing_data, or evidence added by request flags. "
                 f"Invalid evidence metadata names: {invalid_metadata_names}"
             )
 
