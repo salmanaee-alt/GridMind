@@ -55,7 +55,12 @@ class EvidenceMetadata(BaseModel):
     )
     timestamp_relation: EvidenceTimestampRelation = Field(
         default="unknown",
-        description="Whether the evidence was captured before, during, or after the event. Stored for future scoring refinement."
+        description="Whether the evidence was captured before, during, or after the event. Used by timestamp-aware evidence quality scoring."
+    )
+    evidence_age_days: int | None = Field(
+        default=None,
+        ge=0,
+        description="Age of the evidence in days. Used for evidence freshness scoring. None means unknown."
     )
     verified: bool = Field(
         default=False,
@@ -91,24 +96,28 @@ class TransformerDifferentialTripRequest(BaseModel):
                         "evidence_name": "Relay event report",
                         "source_type": "relay",
                         "timestamp_relation": "during_event",
+                        "evidence_age_days": 0,
                         "verified": True
                     },
                     {
                         "evidence_name": "COMTRADE waveform",
                         "source_type": "comtrade",
                         "timestamp_relation": "during_event",
+                        "evidence_age_days": 0,
                         "verified": True
                     },
                     {
                         "evidence_name": "DGA report",
                         "source_type": "lab",
                         "timestamp_relation": "after_event",
+                        "evidence_age_days": 2,
                         "verified": True
                     },
                     {
                         "evidence_name": "Visual inspection",
                         "source_type": "field_inspection",
                         "timestamp_relation": "after_event",
+                        "evidence_age_days": 1,
                         "verified": False
                     }
                 ],

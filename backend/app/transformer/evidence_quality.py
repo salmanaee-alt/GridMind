@@ -127,6 +127,7 @@ def score_evidence_quality(
         "verified_evidence_ratio": metadata_score["verified_evidence_ratio"],
         "source_reliability_score": metadata_score["source_reliability_score"],
         "timestamp_relation_score": metadata_score["timestamp_relation_score"],
+        "freshness_score": metadata_score["freshness_score"],
         "conflict_penalty": conflict_penalty,
         "available_direct_evidence": available_direct,
         "missing_required_evidence": missing_required_evidence,
@@ -159,6 +160,7 @@ def _score_metadata_quality(
     if not relevant_metadata:
         source_reliability_score = 0.0
         timestamp_relation_score = 0.0
+        freshness_score = 0.0
     else:
         source_scores = [
             _source_reliability_value(item.get("source_type", "unknown"))
@@ -168,18 +170,24 @@ def _score_metadata_quality(
             _timestamp_relation_value(item.get("timestamp_relation", "unknown"))
             for item in relevant_metadata
         ]
+        freshness_scores = [
+            _freshness_value(item.get("evidence_age_days"))
+            for item in relevant_metadata
+        ]
 
         source_reliability_score = sum(source_scores) / len(source_scores)
         timestamp_relation_score = sum(timestamp_scores) / len(timestamp_scores)
+        freshness_score = sum(freshness_scores) / len(freshness_scores)
 
     metadata_score = round(
         max(
             0.0,
             min(
                 1.0,
-                (0.45 * verified_evidence_ratio)
-                + (0.35 * source_reliability_score)
-                + (0.20 * timestamp_relation_score),
+                (0.35 * verified_evidence_ratio)
+                + (0.30 * source_reliability_score)
+                + (0.20 * timestamp_relation_score)
+                + (0.15 * freshness_score),
             ),
         ),
         2,
@@ -209,11 +217,17 @@ def _score_metadata_quality(
     elif timestamp_relation_score > 0:
         notes.append("Evidence timing has mixed or moderate alignment with the event.")
 
+    if freshness_score >= 0.75:
+        notes.append("Evidence is recent.")
+    elif freshness_score > 0:
+        notes.append("Evidence freshness is mixed, old, or unknown.")
+
     return {
         "metadata_score": metadata_score,
         "verified_evidence_ratio": round(verified_evidence_ratio, 2),
         "source_reliability_score": round(source_reliability_score, 2),
         "timestamp_relation_score": round(timestamp_relation_score, 2),
+        "freshness_score": round(freshness_score, 2),
         "metadata_quality_notes": notes,
     }
 
@@ -233,3 +247,19 @@ def _source_reliability_value(source_type: str) -> float:
 
 def _timestamp_relation_value(timestamp_relation: str) -> float:
     return TIMESTAMP_RELATION_SCORES.get(timestamp_relation, 0.4)
+
+
+def _freshness_value(evidence_age_days: int | None) -> float:
+    if evidence_age_days is None:
+        return 0.4
+
+    if evidence_age_days <= 7:
+        return 1.0
+
+    if evidence_age_days <= 30:
+        return 0.7
+
+    if evidence_age_days <= 90:
+        return 0.4
+
+    return 0.2
