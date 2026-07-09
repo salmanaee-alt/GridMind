@@ -130,7 +130,7 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert "risk" in hypothesis
         assert "conflicts" in hypothesis
         assert "recommended_next_action" in hypothesis
-        assert hypothesis["source"] == "Transformer Reasoning v0.6"
+        assert hypothesis["source"] == "Transformer Reasoning v0.7"
 
         assert hypothesis["confidence"] in ["low", "medium", "high"]
         assert isinstance(hypothesis["supporting_evidence"], list)
@@ -211,7 +211,7 @@ def test_transformer_content_reasoning_ranks_internal_fault_high():
 
     assert top_ranked["hypothesis"] == "Internal transformer fault"
     assert top_ranked["confidence"] == "high"
-    assert top_ranked["source"] == "Transformer Reasoning v0.6"
+    assert top_ranked["source"] == "Transformer Reasoning v0.7"
 
     assert "DGA status is abnormal." in top_ranked["supporting_evidence"]
     assert "COMTRADE summary does not indicate inrush." in top_ranked["supporting_evidence"]
@@ -510,3 +510,40 @@ def test_transformer_metadata_aware_evidence_quality_is_reported():
     assert len(evidence_quality["metadata_quality_notes"]) >= 1
 
     assert reason_step["data"]["evidence_quality"]["metadata_score"] == evidence_quality["metadata_score"]
+
+
+def test_transformer_rejects_evidence_metadata_name_not_in_evidence_lists():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "evidence_metadata": [
+            {
+                "evidence_name": "DGA Lab File",
+                "source_type": "lab",
+                "timestamp_relation": "after_event",
+                "verified": True
+            }
+        ],
+        "notes": "This request should fail because evidence metadata name does not match available_data or missing_data."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 422

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 DGAStatus = Literal[
@@ -47,7 +47,7 @@ EvidenceTimestampRelation = Literal[
 
 class EvidenceMetadata(BaseModel):
     evidence_name: str = Field(
-        description="Name of the evidence item, such as DGA report or COMTRADE waveform."
+        description="Name of the evidence item. It must match an item in available_data or missing_data."
     )
     source_type: EvidenceSourceType = Field(
         default="unknown",
@@ -55,11 +55,11 @@ class EvidenceMetadata(BaseModel):
     )
     timestamp_relation: EvidenceTimestampRelation = Field(
         default="unknown",
-        description="Whether the evidence was captured before, during, or after the event."
+        description="Whether the evidence was captured before, during, or after the event. Stored for future scoring refinement."
     )
     verified: bool = Field(
         default=False,
-        description="Whether this evidence has been verified by an engineer, trusted system, or official record."
+        description="Whether this evidence has been verified. Used by metadata-aware evidence quality scoring."
     )
 
 
@@ -80,7 +80,9 @@ class TransformerDifferentialTripRequest(BaseModel):
                     "Oil temperature",
                     "Load before trip"
                 ],
-                "missing_data": [],
+                "missing_data": [
+                    "Visual inspection"
+                ],
                 "comtrade_available": True,
                 "dga_available": True,
                 "buchholz_alarm": False,
@@ -142,3 +144,21 @@ class TransformerDifferentialTripRequest(BaseModel):
     evidence_metadata: list[EvidenceMetadata] = Field(default_factory=list)
 
     notes: str | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def validate_evidence_metadata_names(self) -> "TransformerDifferentialTripRequest":
+        allowed_evidence_names = set(self.available_data + self.missing_data)
+
+        invalid_metadata_names = [
+            item.evidence_name
+            for item in self.evidence_metadata
+            if item.evidence_name not in allowed_evidence_names
+        ]
+
+        if invalid_metadata_names:
+            raise ValueError(
+                "Each evidence_metadata.evidence_name must match an item in available_data or missing_data. "
+                f"Invalid evidence metadata names: {invalid_metadata_names}"
+            )
+
+        return self

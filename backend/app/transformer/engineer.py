@@ -128,7 +128,7 @@ class TransformerEngineer:
                 "conflicts": evaluation.get("conflicts", []),
                 "risk": evaluation["risk"],
                 "recommended_next_action": evaluation["recommended_next_action"],
-                "source": "Transformer Reasoning v0.6",
+                "source": "Transformer Reasoning v0.7",
             })
 
         brain = EngineeringBrain()
