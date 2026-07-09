@@ -42,6 +42,7 @@ class EngineeringBrain:
         })
 
         available_evidence = self._extract_available_evidence(session)
+        evidence_metadata = self._extract_evidence_metadata(session)
         missing_required_evidence = self._extract_missing_required_evidence(session)
 
         session.set_status(InvestigationStatus.UNDERSTANDING)
@@ -51,6 +52,7 @@ class EngineeringBrain:
             "data": {
                 "context_status": "initial",
                 "available_evidence_count": len(available_evidence),
+                "evidence_metadata_count": len(evidence_metadata),
                 "has_missing_required_evidence": bool(missing_required_evidence),
             },
         })
@@ -70,6 +72,7 @@ class EngineeringBrain:
             "data": {
                 "data_quality": data_quality,
                 "available_evidence": available_evidence,
+                "evidence_metadata": evidence_metadata,
                 "missing_required_evidence": missing_required_evidence,
             },
         })
@@ -106,6 +109,7 @@ class EngineeringBrain:
             available_evidence=available_evidence,
             missing_required_evidence=combined_missing_evidence,
             unresolved_conflicts=unresolved_conflicts,
+            evidence_metadata=evidence_metadata,
         )
 
         final_conclusion_allowed = not bool(
@@ -115,9 +119,9 @@ class EngineeringBrain:
         session.set_status(InvestigationStatus.REASONING)
         session.add_reasoning_step({
             "stage": "reason",
-            "summary": "Applied preliminary engineering reasoning using evidence sufficiency, hypothesis evaluations, evidence conflicts, and evidence quality.",
+            "summary": "Applied preliminary engineering reasoning using evidence sufficiency, hypothesis evaluations, evidence conflicts, and metadata-aware evidence quality.",
             "data": {
-                "reasoning_mode": "hypothesis_aware_conflict_aware_quality_aware_preliminary_reasoning",
+                "reasoning_mode": "hypothesis_aware_conflict_aware_metadata_quality_aware_preliminary_reasoning",
                 "final_conclusion_allowed": final_conclusion_allowed,
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "combined_missing_evidence": combined_missing_evidence,
@@ -146,7 +150,7 @@ class EngineeringBrain:
 
         session.add_reasoning_step({
             "stage": "evaluate",
-            "summary": "Evaluated confidence, risk, missing evidence, evidence conflicts, evidence quality, and ranked hypotheses.",
+            "summary": "Evaluated confidence, risk, missing evidence, evidence conflicts, metadata-aware evidence quality, and ranked hypotheses.",
             "data": {
                 "confidence": evaluation_confidence,
                 "risk": evaluation_risk,
@@ -175,7 +179,7 @@ class EngineeringBrain:
         else:
             session.add_decision({
                 "decision_type": "engineering_recommendation",
-                "decision": "A preliminary engineering recommendation can be issued based on the available evidence, current hypothesis ranking, and evidence quality.",
+                "decision": "A preliminary engineering recommendation can be issued based on the available evidence, current hypothesis ranking, and metadata-aware evidence quality.",
                 "confidence": evaluation_confidence,
                 "safety_position": "controlled",
                 "top_ranked_hypothesis": top_ranked_hypothesis,
@@ -187,7 +191,7 @@ class EngineeringBrain:
 
         session.add_reasoning_step({
             "stage": "decide",
-            "summary": "Produced an engineering decision using evidence sufficiency, hypothesis ranking, conflict blocking, and evidence quality.",
+            "summary": "Produced an engineering decision using evidence sufficiency, hypothesis ranking, conflict blocking, and metadata-aware evidence quality.",
             "data": {
                 "decision_count": len(session.decisions),
                 "decision_type": session.decisions[-1]["decision_type"] if session.decisions else None,
@@ -211,7 +215,7 @@ class EngineeringBrain:
         else:
             report_summary = (
                 "The investigation has sufficient evidence for a preliminary engineering recommendation. "
-                "The recommendation remains subject to evidence quality, normal engineering review, "
+                "The recommendation remains subject to metadata-aware evidence quality, normal engineering review, "
                 "and operational approval."
             )
             report_confidence = evaluation_confidence
@@ -230,7 +234,7 @@ class EngineeringBrain:
 
         session.add_reasoning_step({
             "stage": "explain",
-            "summary": "Generated an auditable preliminary engineering explanation with hypothesis ranking, conflict status, and evidence quality.",
+            "summary": "Generated an auditable preliminary engineering explanation with hypothesis ranking, conflict status, and metadata-aware evidence quality.",
             "data": {
                 "report_count": len(session.reports),
             },
@@ -248,6 +252,16 @@ class EngineeringBrain:
         session.set_status(InvestigationStatus.COMPLETED)
 
         return session
+
+    def _extract_evidence_metadata(self, session: EngineeringSession) -> list[dict]:
+        metadata: list[dict] = []
+
+        for observation in session.observations:
+            for item in observation.get("evidence_metadata", []):
+                if item not in metadata:
+                    metadata.append(item)
+
+        return metadata
 
     def _extract_available_evidence(self, session: EngineeringSession) -> list[str]:
         available: list[str] = []

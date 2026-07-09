@@ -437,3 +437,76 @@ def test_transformer_evidence_metadata_is_reported_in_observation():
     assert relay_metadata["source_type"] == "relay"
     assert relay_metadata["timestamp_relation"] == "during_event"
     assert relay_metadata["verified"] is True
+
+
+def test_transformer_metadata_aware_evidence_quality_is_reported():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "evidence_metadata": [
+            {
+                "evidence_name": "Relay event report",
+                "source_type": "relay",
+                "timestamp_relation": "during_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "COMTRADE waveform",
+                "source_type": "comtrade",
+                "timestamp_relation": "during_event",
+                "verified": True
+            },
+            {
+                "evidence_name": "DGA report",
+                "source_type": "lab",
+                "timestamp_relation": "after_event",
+                "verified": True
+            }
+        ],
+        "notes": "Metadata-aware evidence quality validation."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    reason_step = next(
+        step for step in data["session"]["reasoning_steps"]
+        if step["stage"] == "reason"
+    )
+
+    evidence_quality = decision["evidence_quality"]
+
+    assert "metadata_score" in evidence_quality
+    assert "verified_evidence_ratio" in evidence_quality
+    assert "source_reliability_score" in evidence_quality
+    assert "metadata_quality_notes" in evidence_quality
+
+    assert evidence_quality["metadata_score"] > 0
+    assert evidence_quality["verified_evidence_ratio"] > 0
+    assert evidence_quality["source_reliability_score"] > 0
+    assert len(evidence_quality["metadata_quality_notes"]) >= 1
+
+    assert reason_step["data"]["evidence_quality"]["metadata_score"] == evidence_quality["metadata_score"]
