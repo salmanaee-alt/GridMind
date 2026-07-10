@@ -85,7 +85,8 @@ class TransformerEngineer:
             relay_targets=request.relay_targets,
             dga_status=request.dga_status,
             comtrade_summary=request.comtrade_summary,
-        )
+        hv_breaker_status=request.hv_breaker_status,
+        lv_breaker_status=request.lv_breaker_status,        )
 
         session = EngineeringSession(
             title=knowledge["description"],
@@ -140,4 +141,5 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
+
 

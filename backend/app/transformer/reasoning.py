@@ -19,6 +19,8 @@ def evaluate_differential_trip_hypotheses(
     relay_targets: list[str] | None = None,
     dga_status: str | None = None,
     comtrade_summary: str | None = None,
+    hv_breaker_status: str | None = None,
+    lv_breaker_status: str | None = None,
 ) -> list[dict]:
     relay_targets_text = " ".join(relay_targets or []).lower()
     dga_status_text = normalize_text(dga_status)
@@ -235,3 +237,4 @@ def evaluate_differential_trip_hypotheses(
     })
 
     return evaluations
+
