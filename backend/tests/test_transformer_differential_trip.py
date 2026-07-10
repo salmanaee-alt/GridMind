@@ -745,3 +745,44 @@ def test_transformer_freshness_aware_evidence_quality_is_reported():
     assert "freshness_score" in evidence_quality
     assert evidence_quality["freshness_score"] > 0
     assert "Evidence is recent." in evidence_quality["metadata_quality_notes"]
+
+def test_transformer_breaker_failed_to_open_creates_conflict():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "hv_breaker_status": "failed_to_open",
+        "lv_breaker_status": "open",
+        "notes": "HV breaker failed to open after transformer differential trip."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    response_text = str(response.json()).lower()
+
+    assert "failed to open" in response_text
+    assert "breaker" in response_text
+    assert "conflict" in response_text
