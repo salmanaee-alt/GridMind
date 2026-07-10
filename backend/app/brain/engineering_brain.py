@@ -104,6 +104,7 @@ class EngineeringBrain:
         )
 
         unresolved_conflicts = self._extract_unresolved_conflicts(ranked_hypotheses)
+        blocking_conflicts = self._extract_blocking_conflicts(unresolved_conflicts)
 
         evidence_quality = score_evidence_quality(
             available_evidence=available_evidence,
@@ -113,7 +114,7 @@ class EngineeringBrain:
         )
 
         final_conclusion_allowed = not bool(
-            combined_missing_evidence or unresolved_conflicts
+            combined_missing_evidence or blocking_conflicts
         )
 
         session.set_status(InvestigationStatus.REASONING)
@@ -126,7 +127,8 @@ class EngineeringBrain:
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "combined_missing_evidence": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
-                "conflict_blocking": bool(unresolved_conflicts),
+                "blocking_conflicts": blocking_conflicts,
+                "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
             },
         })
@@ -156,7 +158,8 @@ class EngineeringBrain:
                 "risk": evaluation_risk,
                 "missing_data": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
-                "conflict_blocking": bool(unresolved_conflicts),
+                "blocking_conflicts": blocking_conflicts,
+                "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
                 "ranked_hypotheses": ranked_hypotheses,
             },
@@ -164,7 +167,7 @@ class EngineeringBrain:
 
         session.set_status(InvestigationStatus.DECIDING)
 
-        if combined_missing_evidence or unresolved_conflicts:
+        if combined_missing_evidence or blocking_conflicts:
             session.add_decision({
                 "decision_type": "evidence_required_before_final_decision",
                 "decision": "Do not issue a final root-cause conclusion. Required evidence must be collected and evidence conflicts must be resolved before re-energization or final RCA.",
@@ -173,7 +176,8 @@ class EngineeringBrain:
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "required_next_evidence": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
-                "conflict_blocking": bool(unresolved_conflicts),
+                "blocking_conflicts": blocking_conflicts,
+                "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
             })
         else:
@@ -197,14 +201,15 @@ class EngineeringBrain:
                 "decision_type": session.decisions[-1]["decision_type"] if session.decisions else None,
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "unresolved_conflicts": unresolved_conflicts,
-                "conflict_blocking": bool(unresolved_conflicts),
+                "blocking_conflicts": blocking_conflicts,
+                "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
             },
         })
 
         session.set_status(InvestigationStatus.EXPLAINING)
 
-        if combined_missing_evidence or unresolved_conflicts:
+        if combined_missing_evidence or blocking_conflicts:
             report_summary = (
                 "The investigation cannot reach a final root-cause conclusion because "
                 "required evidence is missing or evidence conflicts remain unresolved. "
@@ -228,7 +233,8 @@ class EngineeringBrain:
             "ranked_hypotheses": ranked_hypotheses,
             "next_required_evidence": combined_missing_evidence,
             "unresolved_conflicts": unresolved_conflicts,
-            "conflict_blocking": bool(unresolved_conflicts),
+                "blocking_conflicts": blocking_conflicts,
+                "conflict_blocking": bool(blocking_conflicts),
             "evidence_quality": evidence_quality,
         })
 
@@ -347,4 +353,5 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
 
