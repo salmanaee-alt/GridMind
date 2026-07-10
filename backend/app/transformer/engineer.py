@@ -130,6 +130,14 @@ class TransformerEngineer:
                 "conflicts": evaluation.get("conflicts", []),
                 "risk": evaluation["risk"],
                 "recommended_next_action": evaluation["recommended_next_action"],
+                "why_supported": evaluation.get("why_supported", []),
+                "why_not_confirmed": evaluation.get("why_not_confirmed", []),
+                "confidence_drivers": evaluation.get("confidence_drivers", []),
+                "confidence_limiters": evaluation.get("confidence_limiters", []),
+                "evidence_that_would_change_decision": evaluation.get(
+                    "evidence_that_would_change_decision",
+                    [],
+                ),
                 "source": "Transformer Reasoning v0.10",
             })
 
@@ -142,6 +150,8 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
+
+
 
 
 

@@ -132,6 +132,20 @@ def test_transformer_differential_trip_hypotheses_are_evaluated():
         assert "risk" in hypothesis
         assert "conflicts" in hypothesis
         assert "recommended_next_action" in hypothesis
+        assert "why_supported" in hypothesis
+        assert "why_not_confirmed" in hypothesis
+        assert "confidence_drivers" in hypothesis
+        assert "confidence_limiters" in hypothesis
+        assert "evidence_that_would_change_decision" in hypothesis
+
+        assert isinstance(hypothesis["why_supported"], list)
+        assert isinstance(hypothesis["why_not_confirmed"], list)
+        assert isinstance(hypothesis["confidence_drivers"], list)
+        assert isinstance(hypothesis["confidence_limiters"], list)
+        assert isinstance(
+            hypothesis["evidence_that_would_change_decision"],
+            list,
+        )
         assert hypothesis["source"] == "Transformer Reasoning v0.10"
 
         assert hypothesis["confidence"] in ["low", "medium", "high"]
@@ -1407,6 +1421,7 @@ def test_asset_condition_critical_dga_forces_safety_lockout():
     flags_text = str(decision["asset_condition_readiness"]["asset_condition_flags"]).lower()
     assert "critical" in flags_text
     assert "dga" in flags_text
+
 
 
 

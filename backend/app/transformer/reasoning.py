@@ -259,7 +259,52 @@ def evaluate_differential_trip_hypotheses(
         "recommended_next_action": "Review energization timing, harmonic restraint, residual flux possibility, and COMTRADE waveform.",
     })
 
+    for evaluation in evaluations:
+        supporting_evidence = evaluation.get("supporting_evidence", [])
+        missing_evidence = evaluation.get("missing_evidence", [])
+        conflicts = evaluation.get("conflicts", [])
+
+        conflict_descriptions = [
+            conflict.get("conflict", "Unresolved evidence conflict.")
+            for conflict in conflicts
+        ]
+
+        conflict_verifications = [
+            conflict.get("recommended_verification")
+            for conflict in conflicts
+            if conflict.get("recommended_verification")
+        ]
+
+        confidence_limiters = [
+            *missing_evidence,
+            *conflict_descriptions,
+        ]
+
+        evidence_that_would_change_decision = list(
+            dict.fromkeys([
+                *missing_evidence,
+                *conflict_verifications,
+            ])
+        )
+
+        evaluation["why_supported"] = (
+            supporting_evidence
+            if supporting_evidence
+            else ["No direct supporting evidence is currently available."]
+        )
+        evaluation["why_not_confirmed"] = (
+            confidence_limiters
+            if confidence_limiters
+            else ["No material confirmation limiter is currently identified."]
+        )
+        evaluation["confidence_drivers"] = supporting_evidence
+        evaluation["confidence_limiters"] = confidence_limiters
+        evaluation["evidence_that_would_change_decision"] = (
+            evidence_that_would_change_decision
+        )
+
     return evaluations
+
 
 
 
