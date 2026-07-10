@@ -1124,8 +1124,8 @@ def test_re_energization_readiness_is_not_ready_with_blocking_conflict():
     report = data["session"]["reports"][0]
 
     assert decision["conflict_blocking"] is True
-    assert decision["re_energization_readiness"] == "not_ready"
-    assert report["re_energization_readiness"] == "not_ready"
+    assert decision["re_energization_readiness"] == "safety_lockout"
+    assert report["re_energization_readiness"] == "safety_lockout"
 
 
 def test_re_energization_readiness_is_conditionally_ready_with_complete_clean_evidence():
@@ -1260,8 +1260,8 @@ def test_asset_condition_buchholz_alarm_forces_not_ready():
     decision = data["session"]["decisions"][0]
     report = data["session"]["reports"][0]
 
-    assert decision["re_energization_readiness"] == "not_ready"
-    assert report["re_energization_readiness"] == "not_ready"
+    assert decision["re_energization_readiness"] == "safety_lockout"
+    assert report["re_energization_readiness"] == "safety_lockout"
 
     flags_text = str(decision["asset_condition_readiness"]["asset_condition_flags"]).lower()
     assert "buchholz" in flags_text
@@ -1358,3 +1358,55 @@ def test_asset_condition_clean_case_remains_conditionally_ready():
     assert report["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
     assert decision["asset_condition_readiness"]["asset_condition_safe"] is True
     assert decision["asset_condition_readiness"]["asset_condition_flags"] == []
+
+
+def test_asset_condition_critical_dga_forces_safety_lockout():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": [],
+        "dga_status": "critical",
+        "comtrade_summary": "inrush_detected",
+        "hv_breaker_status": "open",
+        "lv_breaker_status": "open",
+        "notes": "Critical DGA with otherwise complete evidence."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["re_energization_readiness"] == "safety_lockout"
+    assert report["re_energization_readiness"] == "safety_lockout"
+    assert decision["asset_condition_readiness"]["safety_lockout_required"] is True
+
+    flags_text = str(decision["asset_condition_readiness"]["asset_condition_flags"]).lower()
+    assert "critical" in flags_text
+    assert "dga" in flags_text
+
+
+

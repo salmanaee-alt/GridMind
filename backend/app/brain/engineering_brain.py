@@ -127,11 +127,17 @@ class EngineeringBrain:
             lv_breaker_status=latest_observation.get("lv_breaker_status"),
         )
 
-        re_energization_readiness = (
-            "conditionally_ready_for_engineering_review"
-            if final_conclusion_allowed and asset_condition_readiness["asset_condition_safe"]
-            else "not_ready"
+        safety_lockout_required = asset_condition_readiness.get(
+            "safety_lockout_required",
+            False,
         )
+
+        if safety_lockout_required:
+            re_energization_readiness = "safety_lockout"
+        elif final_conclusion_allowed and asset_condition_readiness["asset_condition_safe"]:
+            re_energization_readiness = "conditionally_ready_for_engineering_review"
+        else:
+            re_energization_readiness = "not_ready"
 
         session.set_status(InvestigationStatus.REASONING)
         session.add_reasoning_step({
@@ -337,12 +343,20 @@ class EngineeringBrain:
         """
 
         flags: list[dict] = []
+        safety_lockout_required = False
 
         dga_status_text = str(dga_status or "").strip().lower()
         hv_breaker_text = str(hv_breaker_status or "").strip().lower()
         lv_breaker_text = str(lv_breaker_status or "").strip().lower()
 
-        if dga_status_text in ["abnormal", "critical", "alarm", "high_gas", "fault_gas_detected"]:
+        if dga_status_text == "critical":
+            safety_lockout_required = True
+            flags.append({
+                "condition": "DGA status indicates critical transformer condition.",
+                "severity": "critical",
+                "recommended_verification": "Apply safety lockout and review DGA gas pattern, sampling time, trend, and internal fault indicators before any re-energization review.",
+            })
+        elif dga_status_text in ["abnormal", "alarm", "high_gas", "fault_gas_detected"]:
             flags.append({
                 "condition": "DGA status indicates abnormal transformer condition.",
                 "severity": "high",
@@ -350,6 +364,7 @@ class EngineeringBrain:
             })
 
         if buchholz_alarm is True:
+            safety_lockout_required = True
             flags.append({
                 "condition": "Buchholz relay alarm is active.",
                 "severity": "high",
@@ -365,6 +380,7 @@ class EngineeringBrain:
             })
 
         if hv_breaker_text in ["failed_to_open", "failed to open"] or lv_breaker_text in ["failed_to_open", "failed to open"]:
+            safety_lockout_required = True
             flags.append({
                 "condition": "One or more transformer breakers failed to open after trip.",
                 "severity": "high",
@@ -380,6 +396,7 @@ class EngineeringBrain:
 
         return {
             "asset_condition_safe": not bool(flags),
+            "safety_lockout_required": safety_lockout_required,
             "asset_condition_flags": flags,
         }
     def _extract_blocking_conflicts(self, conflicts: list[dict]) -> list[dict]:
@@ -436,6 +453,7 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
 
 
 
