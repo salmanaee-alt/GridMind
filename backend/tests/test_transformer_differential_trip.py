@@ -881,3 +881,64 @@ def test_transformer_breaker_tripped_supports_isolation_without_conflict():
     assert "successful transformer isolation" in response_text
     assert "failed to open" not in response_text
     assert "remained closed" not in response_text
+
+def test_transformer_breaker_failure_becomes_global_safety_conflict():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "hv_breaker_status": "failed_to_open",
+        "lv_breaker_status": "open",
+        "notes": "Breaker post-trip position review required."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    session = data["session"]
+    decision = session["decisions"][0]
+
+    reason_step = next(
+        step for step in session["reasoning_steps"]
+        if step["stage"] == "reason"
+    )
+
+    assert decision["decision_type"] == "evidence_required_before_final_decision"
+    assert decision["confidence"] == "low"
+    assert decision["safety_position"] == "conservative"
+    assert decision["conflict_blocking"] is True
+
+    assert reason_step["data"]["final_conclusion_allowed"] is False
+    assert reason_step["data"]["conflict_blocking"] is True
+
+    unresolved_conflicts = reason_step["data"]["unresolved_conflicts"]
+    conflict_text = str(unresolved_conflicts).lower()
+
+    assert len(unresolved_conflicts) >= 1
+    assert "failed to open" in conflict_text
+    assert "breaker" in conflict_text
+    assert "high" in conflict_text
