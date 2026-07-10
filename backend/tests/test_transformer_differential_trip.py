@@ -780,3 +780,104 @@ def test_transformer_breaker_failed_to_open_creates_conflict():
     assert "breaker" in response_text
     assert "high" in response_text
 
+
+def test_transformer_breaker_both_open_supports_isolation_without_conflict():
+    evaluations = evaluate_differential_trip_hypotheses(
+        available_evidence=[
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history",
+        ],
+        missing_required_evidence=[],
+        buchholz_alarm=False,
+        comtrade_available=True,
+        dga_available=True,
+        oil_temperature_c=72,
+        load_percent=65,
+        relay_targets=["87T differential operated"],
+        dga_status="abnormal",
+        comtrade_summary="no_inrush",
+        hv_breaker_status="open",
+        lv_breaker_status="open",
+    )
+
+    response_text = str(evaluations).lower()
+
+    assert "successful transformer isolation" in response_text
+    assert "failed to open" not in response_text
+    assert "remained closed" not in response_text
+
+
+def test_transformer_breaker_one_closed_creates_medium_conflict():
+    evaluations = evaluate_differential_trip_hypotheses(
+        available_evidence=[
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history",
+        ],
+        missing_required_evidence=[],
+        buchholz_alarm=False,
+        comtrade_available=True,
+        dga_available=True,
+        oil_temperature_c=72,
+        load_percent=65,
+        relay_targets=["87T differential operated"],
+        dga_status="abnormal",
+        comtrade_summary="no_inrush",
+        hv_breaker_status="closed",
+        lv_breaker_status="open",
+    )
+
+    response_text = str(evaluations).lower()
+
+    assert "remained closed" in response_text
+    assert "breaker" in response_text
+    assert "medium" in response_text
+
+
+def test_transformer_breaker_tripped_supports_isolation_without_conflict():
+    evaluations = evaluate_differential_trip_hypotheses(
+        available_evidence=[
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history",
+        ],
+        missing_required_evidence=[],
+        buchholz_alarm=False,
+        comtrade_available=True,
+        dga_available=True,
+        oil_temperature_c=72,
+        load_percent=65,
+        relay_targets=["87T differential operated"],
+        dga_status="abnormal",
+        comtrade_summary="no_inrush",
+        hv_breaker_status="tripped",
+        lv_breaker_status="tripped",
+    )
+
+    response_text = str(evaluations).lower()
+
+    assert "successful transformer isolation" in response_text
+    assert "failed to open" not in response_text
+    assert "remained closed" not in response_text
