@@ -1054,3 +1054,120 @@ def test_blocking_conflicts_are_visible_in_api_response():
     assert "failed to open" in blocking_text
     assert "breaker" in blocking_text
     assert "high" in blocking_text
+
+def test_re_energization_readiness_is_not_ready_with_missing_evidence():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": ["Relay event report"],
+        "missing_data": [],
+        "comtrade_available": False,
+        "dga_available": False,
+        "buchholz_alarm": None,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "notes": "Initial site inspection pending."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["re_energization_readiness"] == "not_ready"
+    assert report["re_energization_readiness"] == "not_ready"
+
+
+def test_re_energization_readiness_is_not_ready_with_blocking_conflict():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "hv_breaker_status": "failed_to_open",
+        "lv_breaker_status": "open",
+        "notes": "Breaker post-trip position review required."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["conflict_blocking"] is True
+    assert decision["re_energization_readiness"] == "not_ready"
+    assert report["re_energization_readiness"] == "not_ready"
+
+
+def test_re_energization_readiness_is_conditionally_ready_with_complete_clean_evidence():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": [],
+        "dga_status": "normal",
+        "comtrade_summary": "inrush_detected",
+        "hv_breaker_status": "open",
+        "lv_breaker_status": "open",
+        "notes": "All required evidence is available with no blocking conflict."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["conflict_blocking"] is False
+    assert decision["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
+    assert report["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
