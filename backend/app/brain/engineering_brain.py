@@ -308,6 +308,26 @@ class EngineeringBrain:
 
         return unresolved_conflicts
 
+    def _evaluate_asset_condition_readiness(
+        self,
+        *,
+        dga_status: str | None = None,
+        buchholz_alarm: bool | None = None,
+        oil_temperature_c: float | None = None,
+        hv_breaker_status: str | None = None,
+        lv_breaker_status: str | None = None,
+    ) -> dict:
+        """
+        Evaluate intrinsic transformer asset condition.
+        v0.15.1:
+        Helper only.
+        Does not affect readiness logic yet.
+        """
+
+        return {
+            "asset_condition_safe": True,
+            "asset_condition_flags": [],
+        }
     def _extract_blocking_conflicts(self, conflicts: list[dict]) -> list[dict]:
         blocking_severities = {"medium", "high", "critical"}
 
@@ -362,6 +382,7 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
 
 
 
