@@ -989,3 +989,68 @@ def test_medium_high_and_critical_conflicts_are_blocking():
         conflict["severity"] in ["medium", "high", "critical"]
         for conflict in blocking_conflicts
     )
+
+def test_blocking_conflicts_are_visible_in_api_response():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": ["87T differential operated"],
+        "dga_status": "abnormal",
+        "comtrade_summary": "no_inrush",
+        "hv_breaker_status": "failed_to_open",
+        "lv_breaker_status": "open",
+        "notes": "Breaker post-trip position review required."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    session = data["session"]
+
+    reason_step = next(
+        step for step in session["reasoning_steps"]
+        if step["stage"] == "reason"
+    )
+
+    decision = session["decisions"][0]
+    report = session["reports"][0]
+
+    assert "unresolved_conflicts" in reason_step["data"]
+    assert "blocking_conflicts" in reason_step["data"]
+    assert reason_step["data"]["conflict_blocking"] is True
+
+    assert "unresolved_conflicts" in decision
+    assert "blocking_conflicts" in decision
+    assert decision["conflict_blocking"] is True
+
+    assert "unresolved_conflicts" in report
+    assert "blocking_conflicts" in report
+    assert report["conflict_blocking"] is True
+
+    blocking_text = str(reason_step["data"]["blocking_conflicts"]).lower()
+
+    assert "failed to open" in blocking_text
+    assert "breaker" in blocking_text
+    assert "high" in blocking_text
