@@ -25,6 +25,27 @@ def evaluate_differential_trip_hypotheses(
     relay_targets_text = " ".join(relay_targets or []).lower()
     dga_status_text = normalize_text(dga_status)
     comtrade_text = normalize_text(comtrade_summary)
+    hv_breaker_text = normalize_text(hv_breaker_status)
+    lv_breaker_text = normalize_text(lv_breaker_status)
+
+    hv_breaker_isolated = hv_breaker_text in ["open", "tripped"]
+    lv_breaker_isolated = lv_breaker_text in ["open", "tripped"]
+    both_breakers_isolated = hv_breaker_isolated and lv_breaker_isolated
+
+    breaker_conflicts: list[dict] = []
+
+    if hv_breaker_text in ["failed_to_open", "failed to open"] or lv_breaker_text in ["failed_to_open", "failed to open"]:
+        breaker_conflicts.append({
+            "conflict": "One or more transformer breakers failed to open after differential trip.",
+            "severity": "high",
+            "recommended_verification": "Verify HV/LV breaker trip coil operation, breaker failure protection, trip circuit supervision, and actual breaker position indications.",
+        })
+    elif hv_breaker_text == "closed" or lv_breaker_text == "closed":
+        breaker_conflicts.append({
+            "conflict": "One or more transformer breakers remained closed after differential trip.",
+            "severity": "medium",
+            "recommended_verification": "Verify breaker position indication, trip command execution, auxiliary contacts, and SCADA/relay event sequence.",
+        })
 
     dga_abnormal = dga_status_text in [
         "abnormal",
@@ -122,6 +143,8 @@ def evaluate_differential_trip_hypotheses(
 
     if "HV/LV breaker status" not in missing_required_evidence:
         external_supporting.append("Breaker status is available for external fault review.")
+    if both_breakers_isolated:
+        external_supporting.append("HV and LV breakers are open or tripped, supporting successful transformer isolation after trip.")
 
     external_missing = [
         item
@@ -139,7 +162,7 @@ def evaluate_differential_trip_hypotheses(
         "confidence": external_confidence,
         "supporting_evidence": external_supporting,
         "missing_evidence": external_missing,
-        "conflicts": [],
+        "conflicts": breaker_conflicts,
         "risk": "medium",
         "recommended_next_action": "Review through-fault records, CT saturation signs, breaker status, and upstream/downstream protection operation.",
     })
@@ -237,4 +260,8 @@ def evaluate_differential_trip_hypotheses(
     })
 
     return evaluations
+
+
+
+
 
