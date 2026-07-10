@@ -117,9 +117,19 @@ class EngineeringBrain:
             combined_missing_evidence or blocking_conflicts
         )
 
+        latest_observation = session.observations[-1] if session.observations else {}
+
+        asset_condition_readiness = self._evaluate_asset_condition_readiness(
+            dga_status=latest_observation.get("dga_status"),
+            buchholz_alarm=latest_observation.get("buchholz_alarm"),
+            oil_temperature_c=latest_observation.get("oil_temperature_c"),
+            hv_breaker_status=latest_observation.get("hv_breaker_status"),
+            lv_breaker_status=latest_observation.get("lv_breaker_status"),
+        )
+
         re_energization_readiness = (
             "conditionally_ready_for_engineering_review"
-            if final_conclusion_allowed
+            if final_conclusion_allowed and asset_condition_readiness["asset_condition_safe"]
             else "not_ready"
         )
 
@@ -186,6 +196,7 @@ class EngineeringBrain:
                 "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
                 "re_energization_readiness": re_energization_readiness,
+                "asset_condition_readiness": asset_condition_readiness,
             })
         else:
             session.add_decision({
@@ -199,6 +210,7 @@ class EngineeringBrain:
                 "conflict_blocking": False,
                 "evidence_quality": evidence_quality,
                 "re_energization_readiness": re_energization_readiness,
+                "asset_condition_readiness": asset_condition_readiness,
             })
 
         session.add_reasoning_step({
@@ -245,6 +257,7 @@ class EngineeringBrain:
                 "conflict_blocking": bool(blocking_conflicts),
             "evidence_quality": evidence_quality,
                 "re_energization_readiness": re_energization_readiness,
+                "asset_condition_readiness": asset_condition_readiness,
             })
 
         session.add_reasoning_step({
@@ -318,15 +331,54 @@ class EngineeringBrain:
         lv_breaker_status: str | None = None,
     ) -> dict:
         """
-        Evaluate intrinsic transformer asset condition.
-        v0.15.1:
-        Helper only.
-        Does not affect readiness logic yet.
+        Evaluate intrinsic transformer asset condition for re-energization readiness.
+        Asset-condition flags are safety blockers even when evidence is complete.
         """
 
+        flags: list[dict] = []
+
+        dga_status_text = str(dga_status or "").strip().lower()
+        hv_breaker_text = str(hv_breaker_status or "").strip().lower()
+        lv_breaker_text = str(lv_breaker_status or "").strip().lower()
+
+        if dga_status_text in ["abnormal", "critical", "alarm", "high_gas", "fault_gas_detected"]:
+            flags.append({
+                "condition": "DGA status indicates abnormal transformer condition.",
+                "severity": "high",
+                "recommended_verification": "Review DGA gas pattern, sampling time, trend, and repeat DGA before re-energization review.",
+            })
+
+        if buchholz_alarm is True:
+            flags.append({
+                "condition": "Buchholz relay alarm is active.",
+                "severity": "high",
+                "recommended_verification": "Inspect for gas accumulation, oil surge evidence, internal fault indicators, and Buchholz relay operation.",
+            })
+
+        if oil_temperature_c is not None and oil_temperature_c >= 90:
+            flags.append({
+                "condition": "Oil temperature is high for post-trip re-energization readiness.",
+                "severity": "medium",
+                "recommended_verification": "Verify transformer temperature, cooling system status, load history, and thermal alarms.",
+            })
+
+        if hv_breaker_text in ["failed_to_open", "failed to open"] or lv_breaker_text in ["failed_to_open", "failed to open"]:
+            flags.append({
+                "condition": "One or more transformer breakers failed to open after trip.",
+                "severity": "high",
+                "recommended_verification": "Verify breaker trip circuit, breaker failure protection, trip coil operation, and actual breaker position.",
+            })
+
+        if hv_breaker_text == "closed" or lv_breaker_text == "closed":
+            flags.append({
+                "condition": "One or more transformer breakers remained closed after trip.",
+                "severity": "medium",
+                "recommended_verification": "Verify breaker position indication, auxiliary contacts, trip command execution, and event sequence.",
+            })
+
         return {
-            "asset_condition_safe": True,
-            "asset_condition_flags": [],
+            "asset_condition_safe": not bool(flags),
+            "asset_condition_flags": flags,
         }
     def _extract_blocking_conflicts(self, conflicts: list[dict]) -> list[dict]:
         blocking_severities = {"medium", "high", "critical"}
@@ -382,6 +434,9 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
+
+
 
 
 
