@@ -112,7 +112,8 @@ class TransformerEngineer:
             "relay_targets": request.relay_targets,
             "dga_status": request.dga_status,
             "comtrade_summary": request.comtrade_summary,
-            "evidence_metadata": evidence_metadata,
+            "hv_breaker_status": request.hv_breaker_status,
+            "lv_breaker_status": request.lv_breaker_status,            "evidence_metadata": evidence_metadata,
             "notes": notes,
             "initial_safety_position": knowledge["initial_safety_position"],
             "available_evidence": available_evidence,
@@ -141,5 +142,7 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
+
+
 
 
