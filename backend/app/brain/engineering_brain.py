@@ -117,6 +117,12 @@ class EngineeringBrain:
             combined_missing_evidence or blocking_conflicts
         )
 
+        re_energization_readiness = (
+            "conditionally_ready_for_engineering_review"
+            if final_conclusion_allowed
+            else "not_ready"
+        )
+
         session.set_status(InvestigationStatus.REASONING)
         session.add_reasoning_step({
             "stage": "reason",
@@ -179,7 +185,7 @@ class EngineeringBrain:
                 "blocking_conflicts": blocking_conflicts,
                 "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
-                "re_energization_readiness": "not_evaluated",
+                "re_energization_readiness": re_energization_readiness,
             })
         else:
             session.add_decision({
@@ -192,7 +198,7 @@ class EngineeringBrain:
                 "unresolved_conflicts": [],
                 "conflict_blocking": False,
                 "evidence_quality": evidence_quality,
-                "re_energization_readiness": "not_evaluated",
+                "re_energization_readiness": re_energization_readiness,
             })
 
         session.add_reasoning_step({
@@ -238,7 +244,7 @@ class EngineeringBrain:
                 "blocking_conflicts": blocking_conflicts,
                 "conflict_blocking": bool(blocking_conflicts),
             "evidence_quality": evidence_quality,
-                "re_energization_readiness": "not_evaluated",
+                "re_energization_readiness": re_energization_readiness,
             })
 
         session.add_reasoning_step({
@@ -356,6 +362,7 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
 
 
 
