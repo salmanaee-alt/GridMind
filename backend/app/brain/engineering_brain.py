@@ -293,6 +293,14 @@ class EngineeringBrain:
 
         return unresolved_conflicts
 
+    def _extract_blocking_conflicts(self, conflicts: list[dict]) -> list[dict]:
+        blocking_severities = {"medium", "high", "critical"}
+
+        return [
+            conflict
+            for conflict in conflicts
+            if conflict.get("severity", "medium") in blocking_severities
+        ]
     def _ensure_default_hypotheses(self, session: EngineeringSession) -> None:
         if session.hypotheses:
             return
@@ -339,3 +347,4 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
