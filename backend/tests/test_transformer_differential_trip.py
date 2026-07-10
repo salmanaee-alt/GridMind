@@ -1171,3 +1171,190 @@ def test_re_energization_readiness_is_conditionally_ready_with_complete_clean_ev
     assert decision["conflict_blocking"] is False
     assert decision["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
     assert report["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
+
+def test_asset_condition_abnormal_dga_forces_not_ready():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": [],
+        "dga_status": "abnormal",
+        "comtrade_summary": "inrush_detected",
+        "hv_breaker_status": "open",
+        "lv_breaker_status": "open",
+        "notes": "DGA abnormal with otherwise complete evidence."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["re_energization_readiness"] == "not_ready"
+    assert report["re_energization_readiness"] == "not_ready"
+
+    flags_text = str(decision["asset_condition_readiness"]["asset_condition_flags"]).lower()
+    assert "dga" in flags_text
+    assert "abnormal" in flags_text
+
+
+def test_asset_condition_buchholz_alarm_forces_not_ready():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": True,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": [],
+        "dga_status": "normal",
+        "comtrade_summary": "inrush_detected",
+        "hv_breaker_status": "open",
+        "lv_breaker_status": "open",
+        "notes": "Buchholz alarm active with otherwise complete evidence."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["re_energization_readiness"] == "not_ready"
+    assert report["re_energization_readiness"] == "not_ready"
+
+    flags_text = str(decision["asset_condition_readiness"]["asset_condition_flags"]).lower()
+    assert "buchholz" in flags_text
+
+
+def test_asset_condition_high_oil_temperature_forces_not_ready():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 95,
+        "load_percent": 65,
+        "relay_targets": [],
+        "dga_status": "normal",
+        "comtrade_summary": "inrush_detected",
+        "hv_breaker_status": "open",
+        "lv_breaker_status": "open",
+        "notes": "High oil temperature with otherwise complete evidence."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["re_energization_readiness"] == "not_ready"
+    assert report["re_energization_readiness"] == "not_ready"
+
+    flags_text = str(decision["asset_condition_readiness"]["asset_condition_flags"]).lower()
+    assert "oil temperature" in flags_text
+
+
+def test_asset_condition_clean_case_remains_conditionally_ready():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": "Transformer tripped by differential relay",
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+            "Differential relay targets",
+            "HV/LV breaker status",
+            "DGA report",
+            "Buchholz relay status",
+            "Oil temperature",
+            "Load before trip",
+            "Visual inspection",
+            "Recent maintenance history"
+        ],
+        "missing_data": [],
+        "comtrade_available": True,
+        "dga_available": True,
+        "buchholz_alarm": False,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "relay_targets": [],
+        "dga_status": "normal",
+        "comtrade_summary": "inrush_detected",
+        "hv_breaker_status": "open",
+        "lv_breaker_status": "open",
+        "notes": "Clean asset condition with complete evidence."
+    }
+
+    response = client.post("/transformer/differential-trip", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    decision = data["session"]["decisions"][0]
+    report = data["session"]["reports"][0]
+
+    assert decision["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
+    assert report["re_energization_readiness"] == "conditionally_ready_for_engineering_review"
+    assert decision["asset_condition_readiness"]["asset_condition_safe"] is True
+    assert decision["asset_condition_readiness"]["asset_condition_flags"] == []
