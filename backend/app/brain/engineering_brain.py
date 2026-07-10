@@ -179,6 +179,7 @@ class EngineeringBrain:
                 "blocking_conflicts": blocking_conflicts,
                 "conflict_blocking": bool(blocking_conflicts),
                 "evidence_quality": evidence_quality,
+                "re_energization_readiness": "not_evaluated",
             })
         else:
             session.add_decision({
@@ -191,6 +192,7 @@ class EngineeringBrain:
                 "unresolved_conflicts": [],
                 "conflict_blocking": False,
                 "evidence_quality": evidence_quality,
+                "re_energization_readiness": "not_evaluated",
             })
 
         session.add_reasoning_step({
@@ -236,7 +238,8 @@ class EngineeringBrain:
                 "blocking_conflicts": blocking_conflicts,
                 "conflict_blocking": bool(blocking_conflicts),
             "evidence_quality": evidence_quality,
-        })
+                "re_energization_readiness": "not_evaluated",
+            })
 
         session.add_reasoning_step({
             "stage": "explain",
@@ -353,5 +356,6 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
 
 
