@@ -2,6 +2,7 @@
 
 from app.main import app
 from app.transformer.reasoning import evaluate_differential_trip_hypotheses
+from app.brain.engineering_brain import EngineeringBrain
 
 
 client = TestClient(app)
@@ -942,3 +943,49 @@ def test_transformer_breaker_failure_becomes_global_safety_conflict():
     assert "failed to open" in conflict_text
     assert "breaker" in conflict_text
     assert "high" in conflict_text
+
+
+def test_low_severity_conflict_is_not_blocking():
+    brain = object.__new__(EngineeringBrain)
+
+    conflicts = [
+        {
+            "conflict": "Minor non-safety inconsistency in supporting evidence.",
+            "severity": "low",
+            "recommended_verification": "Review during normal engineering validation.",
+        }
+    ]
+
+    blocking_conflicts = brain._extract_blocking_conflicts(conflicts)
+
+    assert blocking_conflicts == []
+
+
+def test_medium_high_and_critical_conflicts_are_blocking():
+    brain = object.__new__(EngineeringBrain)
+
+    conflicts = [
+        {
+            "conflict": "Medium severity evidence conflict.",
+            "severity": "medium",
+            "recommended_verification": "Resolve before final conclusion.",
+        },
+        {
+            "conflict": "High severity safety conflict.",
+            "severity": "high",
+            "recommended_verification": "Resolve before re-energization.",
+        },
+        {
+            "conflict": "Critical safety conflict.",
+            "severity": "critical",
+            "recommended_verification": "Apply safety lock until resolved.",
+        },
+    ]
+
+    blocking_conflicts = brain._extract_blocking_conflicts(conflicts)
+
+    assert len(blocking_conflicts) == 3
+    assert all(
+        conflict["severity"] in ["medium", "high", "critical"]
+        for conflict in blocking_conflicts
+    )
