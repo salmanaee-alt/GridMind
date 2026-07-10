@@ -25,6 +25,14 @@ COMTRADESummary = Literal[
     "unknown",
 ]
 
+BreakerStatus = Literal[
+    "unknown",
+    "open",
+    "closed",
+    "tripped",
+    "failed_to_open",
+]
+
 EvidenceSourceType = Literal[
     "relay",
     "comtrade",
@@ -141,6 +149,15 @@ class TransformerDifferentialTripRequest(BaseModel):
     oil_temperature_c: float | None = Field(default=None)
     load_percent: float | None = Field(default=None)
 
+    hv_breaker_status: BreakerStatus = Field(
+        default="unknown",
+        description="HV side breaker status after the transformer differential trip."
+    )
+    lv_breaker_status: BreakerStatus = Field(
+        default="unknown",
+        description="LV side breaker status after the transformer differential trip."
+    )
+
     relay_targets: list[str] = Field(default_factory=list)
     dga_status: DGAStatus = Field(default="not_available")
     comtrade_summary: COMTRADESummary = Field(default="not_available")
@@ -181,3 +198,4 @@ class TransformerDifferentialTripRequest(BaseModel):
             )
 
         return self
+
