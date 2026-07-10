@@ -140,6 +140,7 @@ class EngineeringBrain:
             "data": {
                 "reasoning_mode": "hypothesis_aware_conflict_aware_metadata_quality_aware_preliminary_reasoning",
                 "final_conclusion_allowed": final_conclusion_allowed,
+                "asset_condition_readiness": asset_condition_readiness,
                 "top_ranked_hypothesis": top_ranked_hypothesis,
                 "combined_missing_evidence": combined_missing_evidence,
                 "unresolved_conflicts": unresolved_conflicts,
@@ -355,6 +356,7 @@ class EngineeringBrain:
                 "recommended_verification": "Inspect for gas accumulation, oil surge evidence, internal fault indicators, and Buchholz relay operation.",
             })
 
+        # MVP threshold; make configurable by transformer design and operating context in a future version.
         if oil_temperature_c is not None and oil_temperature_c >= 90:
             flags.append({
                 "condition": "Oil temperature is high for post-trip re-energization readiness.",
@@ -434,6 +436,7 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+
 
 
 
