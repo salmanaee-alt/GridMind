@@ -140,3 +140,4 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
+
