@@ -762,6 +762,41 @@ def test_transformer_freshness_aware_evidence_quality_is_reported():
     assert evidence_quality["freshness_score"] > 0
     assert "Evidence is recent." in evidence_quality["metadata_quality_notes"]
 
+def test_transformer_inrush_explanation_quality():
+    evaluations = evaluate_differential_trip_hypotheses(
+        available_evidence=[
+            "COMTRADE waveform",
+        ],
+        missing_required_evidence=[
+            "Load before trip",
+        ],
+        buchholz_alarm=False,
+        comtrade_available=True,
+        dga_available=False,
+        oil_temperature_c=72,
+        load_percent=None,
+        relay_targets=[],
+        dga_status="unknown",
+        comtrade_summary="inrush_detected",
+        hv_breaker_status="unknown",
+        lv_breaker_status="unknown",
+    )
+
+    inrush = next(
+        evaluation
+        for evaluation in evaluations
+        if evaluation["hypothesis"]
+        == "Inrush or abnormal energization condition"
+    )
+
+    assert "COMTRADE summary indicates inrush." in inrush["why_supported"]
+    assert inrush["confidence_drivers"] == inrush["supporting_evidence"]
+
+    assert "Load before trip" in inrush["why_not_confirmed"]
+    assert "Load before trip" in inrush["confidence_limiters"]
+    assert "Load before trip" in inrush[
+        "evidence_that_would_change_decision"
+    ]
 def test_transformer_breaker_failed_to_open_creates_conflict():
     evaluations = evaluate_differential_trip_hypotheses(
         available_evidence=[
