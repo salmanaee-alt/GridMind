@@ -128,12 +128,20 @@ class TransformerEngineer:
                 "supporting_evidence": evaluation["supporting_evidence"],
                 "missing_evidence": evaluation["missing_evidence"],
                 "conflicts": evaluation.get("conflicts", []),
+                               "conflicting_evidence": evaluation.get(
+                    "conflicting_evidence",
+                    [],
+                ),
                 "risk": evaluation["risk"],
                 "recommended_next_action": evaluation["recommended_next_action"],
                 "why_supported": evaluation.get("why_supported", []),
                 "why_not_confirmed": evaluation.get("why_not_confirmed", []),
                 "confidence_drivers": evaluation.get("confidence_drivers", []),
                 "confidence_limiters": evaluation.get("confidence_limiters", []),
+                                "confidence_limiter_details": evaluation.get(
+                    "confidence_limiter_details",
+                    [],
+                ),
                 "evidence_that_would_change_decision": evaluation.get(
                     "evidence_that_would_change_decision",
                     [],

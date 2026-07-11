@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 
 def normalize_text(value: str | None) -> str:
@@ -275,6 +275,27 @@ def evaluate_differential_trip_hypotheses(
             if conflict.get("recommended_verification")
         ]
 
+        confidence_limiter_details = [
+            *[
+                {
+                    "limiter_type": "missing_evidence",
+                    "description": item,
+                }
+                for item in missing_evidence
+            ],
+            *[
+                {
+                    "limiter_type": "conflicting_evidence",
+                    "description": conflict.get(
+                        "conflict",
+                        "Unresolved evidence conflict.",
+                    ),
+                    "severity": conflict.get("severity", "unknown"),
+                }
+                for conflict in conflicts
+            ],
+        ]
+
         confidence_limiters = [
             *missing_evidence,
             *conflict_descriptions,
@@ -299,6 +320,10 @@ def evaluate_differential_trip_hypotheses(
         )
         evaluation["confidence_drivers"] = supporting_evidence
         evaluation["confidence_limiters"] = confidence_limiters
+        evaluation["conflicting_evidence"] = conflict_descriptions
+        evaluation["confidence_limiter_details"] = (
+            confidence_limiter_details
+        )
         evaluation["evidence_that_would_change_decision"] = (
             evidence_that_would_change_decision
         )

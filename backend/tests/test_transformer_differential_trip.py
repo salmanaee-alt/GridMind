@@ -1,4 +1,4 @@
-﻿from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from app.main import app
 from app.transformer.reasoning import evaluate_differential_trip_hypotheses
@@ -278,6 +278,28 @@ def test_transformer_content_reasoning_detects_evidence_conflict():
     assert len(internal_fault["conflicts"]) >= 1
     assert internal_fault["conflicts"][0]["severity"] == "medium"
 
+    conflict_description = internal_fault["conflicts"][0]["conflict"]
+    recommended_verification = internal_fault["conflicts"][0].get(
+        "recommended_verification"
+    )
+
+    assert conflict_description in internal_fault["why_not_confirmed"]
+    assert conflict_description in internal_fault["confidence_limiters"]
+
+    assert recommended_verification
+    assert recommended_verification in internal_fault[
+        "evidence_that_would_change_decision"
+    ]
+
+    assert conflict_description in internal_fault[
+        "conflicting_evidence"
+    ]
+
+    assert {
+        "limiter_type": "conflicting_evidence",
+        "description": conflict_description,
+        "severity": "medium",
+    } in internal_fault["confidence_limiter_details"]
 
 def test_transformer_evidence_quality_scoring_is_reported():
     payload = {
@@ -797,6 +819,13 @@ def test_transformer_inrush_explanation_quality():
     assert "Load before trip" in inrush[
         "evidence_that_would_change_decision"
     ]
+    assert inrush["conflicting_evidence"] == []
+
+    assert {
+        "limiter_type": "missing_evidence",
+        "description": "Load before trip",
+    } in inrush["confidence_limiter_details"]
+
 def test_transformer_breaker_failed_to_open_creates_conflict():
     evaluations = evaluate_differential_trip_hypotheses(
         available_evidence=[
