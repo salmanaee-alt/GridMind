@@ -1643,3 +1643,79 @@ def test_transformer_api_exposes_explanation_provenance_contract():
                 assert "source_path" in item
                 assert "traceable" in item
 
+
+def test_transformer_api_exposes_hypothesis_ranking_audit():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": (
+            "Transformer tripped by differential relay"
+        ),
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+        ],
+        "missing_data": [],
+        "comtrade_available": False,
+        "dga_available": False,
+        "buchholz_alarm": None,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "notes": "Initial engineering review pending.",
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    session = response.json()["session"]
+    session_hypotheses = session["hypotheses"]
+    ranked_hypotheses = session["reports"][0][
+        "ranked_hypotheses"
+    ]
+    top_ranked = session["decisions"][0][
+        "top_ranked_hypothesis"
+    ]
+
+    assert len(session_hypotheses) == len(ranked_hypotheses)
+    assert top_ranked["ranking_audit"]["rank_position"] == 1
+
+    for expected_rank, hypothesis in enumerate(
+        ranked_hypotheses,
+        start=1,
+    ):
+        audit = hypothesis["ranking_audit"]
+
+        assert audit["rank_position"] == expected_rank
+        assert audit["original_position"] >= 1
+        assert audit["confidence"] == hypothesis["confidence"]
+        assert audit["confidence_rank"] in {1, 2, 3}
+
+        assert audit["supporting_evidence_count"] == len(
+            hypothesis["supporting_evidence"]
+        )
+        assert audit["missing_evidence_count"] == len(
+            hypothesis["missing_evidence"]
+        )
+        assert audit["conflict_count"] == len(
+            hypothesis["conflicts"]
+        )
+
+        assert audit["ranking_key"] == [
+            audit["confidence_rank"],
+            audit["supporting_evidence_count"],
+            -audit["missing_evidence_count"],
+            -audit["conflict_count"],
+        ]
+        assert audit["tie_breaker_policy"] == "stable_input_order"
+        assert audit["ranking_algorithm"] == (
+            "confidence_support_missing_conflict_v0.1"
+        )
+        assert audit["affects_ranking"] is False
+        assert audit["ranking_algorithm_changed"] is False
+
+    for hypothesis in session_hypotheses:
+        assert "ranking_audit" in hypothesis

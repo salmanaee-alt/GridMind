@@ -87,6 +87,11 @@ class EngineeringBrain:
         self._attach_explanation_provenance(session.hypotheses)
 
         ranked_hypotheses = self._rank_hypotheses(session.hypotheses)
+        self._attach_hypothesis_ranking_audit(
+            ranked_hypotheses=ranked_hypotheses,
+            original_hypotheses=session.hypotheses,
+        )
+
         top_ranked_hypothesis = ranked_hypotheses[0] if ranked_hypotheses else None
 
         session.add_reasoning_step({
@@ -456,15 +461,83 @@ class EngineeringBrain:
                 )
             )
 
-    def _rank_hypotheses(self, hypotheses: list[dict]) -> list[dict]:
+    def _attach_hypothesis_ranking_audit(
+        self,
+        ranked_hypotheses: list[dict],
+        original_hypotheses: list[dict],
+    ) -> None:
+        original_positions = {
+            id(hypothesis): position
+            for position, hypothesis in enumerate(
+                original_hypotheses,
+                start=1,
+            )
+        }
+
+        for rank_position, hypothesis in enumerate(
+            ranked_hypotheses,
+            start=1,
+        ):
+            confidence = hypothesis.get("confidence", "low")
+            confidence_rank = self.CONFIDENCE_RANK.get(
+                confidence,
+                0,
+            )
+
+            supporting_evidence_count = len(
+                hypothesis.get("supporting_evidence", [])
+            )
+            missing_evidence_count = len(
+                hypothesis.get("missing_evidence", [])
+            )
+            conflict_count = len(
+                hypothesis.get("conflicts", [])
+            )
+
+            hypothesis["ranking_audit"] = {
+                "rank_position": rank_position,
+                "original_position": original_positions.get(
+                    id(hypothesis)
+                ),
+                "confidence": confidence,
+                "confidence_rank": confidence_rank,
+                "supporting_evidence_count": (
+                    supporting_evidence_count
+                ),
+                "missing_evidence_count": missing_evidence_count,
+                "conflict_count": conflict_count,
+                "ranking_key": list(
+                    self._hypothesis_ranking_key(hypothesis)
+                ),
+                "tie_breaker_policy": "stable_input_order",
+                "ranking_algorithm": (
+                    "confidence_support_missing_conflict_v0.1"
+                ),
+                "affects_ranking": False,
+                "ranking_algorithm_changed": False,
+            }
+
+    def _hypothesis_ranking_key(
+        self,
+        hypothesis: dict,
+    ) -> tuple[int, int, int, int]:
+        return (
+            self.CONFIDENCE_RANK.get(
+                hypothesis.get("confidence", "low"),
+                0,
+            ),
+            len(hypothesis.get("supporting_evidence", [])),
+            -len(hypothesis.get("missing_evidence", [])),
+            -len(hypothesis.get("conflicts", [])),
+        )
+
+    def _rank_hypotheses(
+        self,
+        hypotheses: list[dict],
+    ) -> list[dict]:
         return sorted(
             hypotheses,
-            key=lambda hypothesis: (
-                self.CONFIDENCE_RANK.get(hypothesis.get("confidence", "low"), 0),
-                len(hypothesis.get("supporting_evidence", [])),
-                -len(hypothesis.get("missing_evidence", [])),
-                -len(hypothesis.get("conflicts", [])),
-            ),
+            key=self._hypothesis_ranking_key,
             reverse=True,
         )
 
