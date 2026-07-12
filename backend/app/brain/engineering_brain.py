@@ -84,6 +84,7 @@ class EngineeringBrain:
         session.set_status(InvestigationStatus.HYPOTHESIZING)
 
         self._ensure_default_hypotheses(session)
+        self._attach_explanation_provenance(session.hypotheses)
 
         ranked_hypotheses = self._rank_hypotheses(session.hypotheses)
         top_ranked_hypothesis = ranked_hypotheses[0] if ranked_hypotheses else None

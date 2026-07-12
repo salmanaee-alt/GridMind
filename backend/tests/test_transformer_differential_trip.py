@@ -1552,5 +1552,94 @@ def test_asset_condition_critical_dga_forces_safety_lockout():
     assert "dga" in flags_text
 
 
+def test_transformer_api_exposes_explanation_provenance_contract():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": (
+            "Transformer tripped by differential relay"
+        ),
+        "relay_name": "87T",
+        "available_data": [
+            "Relay event report",
+        ],
+        "missing_data": [],
+        "comtrade_available": False,
+        "dga_available": False,
+        "buchholz_alarm": None,
+        "oil_temperature_c": 72,
+        "load_percent": 65,
+        "notes": (
+            "Initial site inspection and diagnostic review pending."
+        ),
+    }
 
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    session = data["session"]
+
+    hypothesis_collections = [
+        session["hypotheses"],
+        session["reports"][0]["ranked_hypotheses"],
+    ]
+
+    for hypotheses in hypothesis_collections:
+        assert len(hypotheses) == 5
+
+        for hypothesis in hypotheses:
+            assert "explanation_provenance_details" in hypothesis
+            assert "explanation_provenance_integrity" in hypothesis
+
+            details = hypothesis[
+                "explanation_provenance_details"
+            ]
+            integrity = hypothesis[
+                "explanation_provenance_integrity"
+            ]
+
+            assert isinstance(details, list)
+            assert isinstance(integrity, dict)
+
+            assert integrity["status"] in {
+                "complete",
+                "incomplete",
+                "not_applicable",
+            }
+            assert integrity["affects_decision"] is False
+
+            total = integrity["total_statement_count"]
+            traceable = integrity["traceable_statement_count"]
+            unresolved = integrity["unresolved_statement_count"]
+
+            assert total == len(details)
+            assert traceable + unresolved == total
+
+            if total == 0:
+                assert integrity["status"] == "not_applicable"
+                assert integrity["traceability_ratio"] is None
+            else:
+                expected_ratio = round(
+                    traceable / total,
+                    2,
+                )
+                assert (
+                    integrity["traceability_ratio"]
+                    == expected_ratio
+                )
+
+            for item in details:
+                assert "field" in item
+                assert "statement" in item
+                assert "statement_index" in item
+                assert "source_type" in item
+                assert "source_field" in item
+                assert "source_index" in item
+                assert "source_path" in item
+                assert "traceable" in item
 

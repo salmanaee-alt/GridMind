@@ -192,6 +192,11 @@ def _find_conflict_index(
 def summarize_explanation_provenance_integrity(
     details: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    """Summarize explanation traceability for audit use only.
+
+    A None traceability ratio means there are no explanation
+    statements to evaluate; it does not mean zero percent traceable.
+    """
     if not isinstance(details, list):
         details = []
 
