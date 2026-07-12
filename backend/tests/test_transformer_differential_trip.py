@@ -790,6 +790,49 @@ def test_transformer_freshness_aware_evidence_quality_is_reported():
     decision = data["session"]["decisions"][0]
     evidence_quality = decision["evidence_quality"]
 
+    assert evidence_quality["weight_model"] == "metadata_quality_v0.1"
+    assert (
+        evidence_quality["weight_model_is_calibrated_probability"]
+        is False
+    )
+
+    weight_details = evidence_quality["evidence_weight_details"]
+
+    assert [
+        item["evidence_name"]
+        for item in weight_details
+    ] == sorted(
+        item["evidence_name"]
+        for item in weight_details
+    )
+
+    relay_weight = next(
+        item
+        for item in weight_details
+        if item["evidence_name"] == "Relay event report"
+    )
+
+    assert relay_weight == {
+        "evidence_name": "Relay event report",
+        "raw_weight": 1.0,
+        "metadata_available": True,
+        "weight_factors": {
+            "verification_factor": 1.0,
+            "source_reliability": 1.0,
+            "timing_factor": 1.0,
+            "freshness_factor": 1.0,
+        },
+    }
+
+    missing_metadata_weight = next(
+        item
+        for item in weight_details
+        if item["evidence_name"] == "Differential relay targets"
+    )
+
+    assert missing_metadata_weight["raw_weight"] == 0.0
+    assert missing_metadata_weight["metadata_available"] is False
+
     assert "freshness_score" in evidence_quality
     assert evidence_quality["freshness_score"] > 0
     assert "Evidence is recent." in evidence_quality["metadata_quality_notes"]

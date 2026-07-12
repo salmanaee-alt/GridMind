@@ -79,6 +79,11 @@ def score_evidence_quality(
         evidence_metadata=evidence_metadata,
     )
 
+    evidence_weight_details = _build_evidence_weight_details(
+        available_evidence=available_evidence,
+        evidence_metadata=evidence_metadata,
+    )
+
     conflict_penalty = 0.25 if unresolved_conflicts else 0.0
 
     quality_score = round(
@@ -128,6 +133,9 @@ def score_evidence_quality(
         "source_reliability_score": metadata_score["source_reliability_score"],
         "timestamp_relation_score": metadata_score["timestamp_relation_score"],
         "freshness_score": metadata_score["freshness_score"],
+        "evidence_weight_details": evidence_weight_details,
+        "weight_model": "metadata_quality_v0.1",
+        "weight_model_is_calibrated_probability": False,
         "conflict_penalty": conflict_penalty,
         "available_direct_evidence": available_direct,
         "missing_required_evidence": missing_required_evidence,
@@ -230,6 +238,67 @@ def _score_metadata_quality(
         "freshness_score": round(freshness_score, 2),
         "metadata_quality_notes": notes,
     }
+
+
+def _build_evidence_weight_details(
+    available_evidence: list[str],
+    evidence_metadata: list[dict],
+) -> list[dict]:
+    metadata_by_name: dict[str, dict] = {}
+
+    for item in evidence_metadata:
+        evidence_name = item.get("evidence_name")
+
+        if evidence_name and evidence_name not in metadata_by_name:
+            metadata_by_name[evidence_name] = item
+
+    weight_details: list[dict] = []
+
+    for evidence_name in sorted(set(available_evidence)):
+        metadata = metadata_by_name.get(evidence_name)
+
+        if metadata is None:
+            verification_factor = 0.0
+            source_reliability = 0.0
+            timing_factor = 0.0
+            freshness_factor = 0.0
+            metadata_available = False
+        else:
+            verification_factor = (
+                1.0 if metadata.get("verified") is True else 0.0
+            )
+            source_reliability = _source_reliability_value(
+                metadata.get("source_type", "unknown")
+            )
+            timing_factor = _timestamp_relation_value(
+                metadata.get("timestamp_relation", "unknown")
+            )
+            freshness_factor = _freshness_value(
+                metadata.get("evidence_age_days")
+            )
+            metadata_available = True
+
+        raw_weight = round(
+            (0.35 * verification_factor)
+            + (0.30 * source_reliability)
+            + (0.20 * timing_factor)
+            + (0.15 * freshness_factor),
+            2,
+        )
+
+        weight_details.append({
+            "evidence_name": evidence_name,
+            "raw_weight": raw_weight,
+            "metadata_available": metadata_available,
+            "weight_factors": {
+                "verification_factor": verification_factor,
+                "source_reliability": source_reliability,
+                "timing_factor": timing_factor,
+                "freshness_factor": freshness_factor,
+            },
+        })
+
+    return weight_details
 
 
 def _source_reliability_value(source_type: str) -> float:
