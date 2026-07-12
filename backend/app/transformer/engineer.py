@@ -146,6 +146,10 @@ class TransformerEngineer:
                     "evidence_that_would_change_decision",
                     [],
                 ),
+                "decision_change_details": evaluation.get(
+                    "decision_change_details",
+                    [],
+                ),
                 "source": "Transformer Reasoning v0.10",
             })
 

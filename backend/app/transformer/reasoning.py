@@ -39,13 +39,21 @@ def evaluate_differential_trip_hypotheses(
             "conflict": "One or more transformer breakers failed to open after differential trip.",
             "severity": "high",
             "recommended_verification": "Verify HV/LV breaker trip coil operation, breaker failure protection, trip circuit supervision, and actual breaker position indications.",
-        })
+                    "decision_change_condition": (
+                "Confirmed breaker opening and healthy trip-circuit operation "
+                "would remove the breaker-failure conflict; confirmed failure "
+                "to interrupt current would strengthen the safety concern."
+            ),})
     elif hv_breaker_text == "closed" or lv_breaker_text == "closed":
         breaker_conflicts.append({
             "conflict": "One or more transformer breakers remained closed after differential trip.",
             "severity": "medium",
             "recommended_verification": "Verify breaker position indication, trip command execution, auxiliary contacts, and SCADA/relay event sequence.",
-        })
+                    "decision_change_condition": (
+                "Confirmed indication error with the breaker physically open "
+                "would remove the conflict; confirmed closed position after the "
+                "trip command would sustain or strengthen it."
+            ),})
 
     dga_abnormal = dga_status_text in [
         "abnormal",
@@ -73,14 +81,25 @@ def evaluate_differential_trip_hypotheses(
             "conflict": "Differential operation with no inrush indication, but DGA status is normal.",
             "severity": "medium",
             "recommended_verification": "Verify DGA sampling time, relay targets, COMTRADE waveform, and visual inspection before increasing internal fault confidence.",
-        })
+            "decision_change_condition": (
+                "Event-aligned abnormal DGA, physical internal-fault evidence, "
+                "or confirmed non-inrush differential current would strengthen "
+                "the internal-fault hypothesis; validated normal condition "
+                "evidence would weaken it."
+            ),
+            })
 
     if dga_abnormal and inrush_detected:
         conflicts.append({
             "conflict": "DGA is abnormal, but COMTRADE indicates inrush.",
             "severity": "medium",
             "recommended_verification": "Confirm whether the event occurred during energization and review harmonic restraint operation.",
-        })
+                    "decision_change_condition": (
+                "Confirmed energization with valid inrush restraint behavior "
+                "would strengthen the inrush hypothesis; evidence of internal "
+                "fault activity independent of energization would weaken it."
+            ),
+            })
 
     evaluations: list[dict] = []
 
@@ -275,6 +294,34 @@ def evaluate_differential_trip_hypotheses(
             if conflict.get("recommended_verification")
         ]
 
+        decision_change_details = [
+            *[
+                {
+                    "evidence_type": "missing_evidence",
+                    "required_evidence": item,
+                    "decision_impact": (
+                        "Reviewing this evidence may increase or decrease "
+                        "confidence in the hypothesis."
+                    ),
+                }
+                for item in missing_evidence
+            ],
+            *[
+                {
+                    "evidence_type": "conflict_verification",
+                    "verification_action": conflict.get(
+                        "recommended_verification"
+                    ),
+                    "observable_condition": conflict.get(
+                        "decision_change_condition"
+                    ),
+                    "severity": conflict.get("severity", "unknown"),
+                }
+                for conflict in conflicts
+                if conflict.get("recommended_verification")
+                or conflict.get("decision_change_condition")
+            ],
+        ]
         confidence_limiter_details = [
             *[
                 {
@@ -327,6 +374,7 @@ def evaluate_differential_trip_hypotheses(
         evaluation["evidence_that_would_change_decision"] = (
             evidence_that_would_change_decision
         )
+        evaluation["decision_change_details"] = decision_change_details
 
     return evaluations
 

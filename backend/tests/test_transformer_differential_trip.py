@@ -300,7 +300,17 @@ def test_transformer_content_reasoning_detects_evidence_conflict():
         "description": conflict_description,
         "severity": "medium",
     } in internal_fault["confidence_limiter_details"]
+    conflict_change = next(
+        item
+        for item in internal_fault["decision_change_details"]
+        if item["evidence_type"] == "conflict_verification"
+    )
 
+    assert conflict_change["verification_action"] == recommended_verification
+    assert conflict_change["observable_condition"] == internal_fault[
+        "conflicts"
+    ][0]["decision_change_condition"]
+    assert conflict_change["severity"] == "medium"
 def test_transformer_evidence_quality_scoring_is_reported():
     payload = {
         "asset_id": "T1",
@@ -825,6 +835,18 @@ def test_transformer_inrush_explanation_quality():
         "limiter_type": "missing_evidence",
         "description": "Load before trip",
     } in inrush["confidence_limiter_details"]
+
+    missing_change = next(
+        item
+        for item in inrush["decision_change_details"]
+        if item["evidence_type"] == "missing_evidence"
+        and item["required_evidence"] == "Load before trip"
+    )
+
+    assert missing_change["decision_impact"] == (
+        "Reviewing this evidence may increase or decrease "
+        "confidence in the hypothesis."
+    )
 
 def test_transformer_breaker_failed_to_open_creates_conflict():
     evaluations = evaluate_differential_trip_hypotheses(
