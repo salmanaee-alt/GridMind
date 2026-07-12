@@ -1,9 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
 from app.brain.engineering_session import EngineeringSession, InvestigationStatus
+from app.brain.explanation_provenance import (
+    build_explanation_provenance_details,
+)
 from app.transformer.evidence_quality import score_evidence_quality
 
 
@@ -433,6 +436,15 @@ class EngineeringBrain:
             "source": "EngineeringBrain default hypothesis",
         })
 
+    def _attach_explanation_provenance(
+        self,
+        hypotheses: list[dict],
+    ) -> None:
+        for hypothesis in hypotheses:
+            hypothesis["explanation_provenance_details"] = (
+                build_explanation_provenance_details(hypothesis)
+            )
+
     def _rank_hypotheses(self, hypotheses: list[dict]) -> list[dict]:
         return sorted(
             hypotheses,
@@ -453,13 +465,3 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
-
-
-
-
-
-
-
-
-
-
