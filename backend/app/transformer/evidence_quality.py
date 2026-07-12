@@ -52,6 +52,20 @@ def score_evidence_quality(
     unresolved_conflicts = unresolved_conflicts or []
     evidence_metadata = evidence_metadata or []
 
+    metadata_names = [
+        item.get("evidence_name")
+        for item in evidence_metadata
+    ]
+
+    if len(metadata_names) != len(set(metadata_names)):
+        raise ValueError(
+            "Evidence metadata requires unique evidence_name values."
+        )
+
+    available_evidence = list(
+        dict.fromkeys(available_evidence)
+    )
+
     total_expected = len(set(available_evidence + missing_required_evidence))
 
     if total_expected == 0:

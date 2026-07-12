@@ -185,6 +185,27 @@ class TransformerDifferentialTripRequest(BaseModel):
         if self.load_percent is not None:
             allowed_evidence_names.add("Load before trip")
 
+        seen_metadata_names: set[str] = set()
+        duplicate_metadata_names: list[str] = []
+
+        for item in self.evidence_metadata:
+            evidence_name = item.evidence_name
+
+            if (
+                evidence_name in seen_metadata_names
+                and evidence_name not in duplicate_metadata_names
+            ):
+                duplicate_metadata_names.append(evidence_name)
+
+            seen_metadata_names.add(evidence_name)
+
+        if duplicate_metadata_names:
+            raise ValueError(
+                "evidence_metadata must contain unique evidence_name "
+                "values. Duplicate names: "
+                f"{duplicate_metadata_names}"
+            )
+
         invalid_metadata_names = [
             item.evidence_name
             for item in self.evidence_metadata
@@ -198,4 +219,3 @@ class TransformerDifferentialTripRequest(BaseModel):
             )
 
         return self
-

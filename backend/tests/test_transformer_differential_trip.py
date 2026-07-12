@@ -1719,3 +1719,35 @@ def test_transformer_api_exposes_hypothesis_ranking_audit():
 
     for hypothesis in session_hypotheses:
         assert "ranking_audit" in hypothesis
+
+
+def test_transformer_api_rejects_duplicate_evidence_metadata_names():
+    payload = {
+        "available_data": [
+            "Relay event report",
+        ],
+        "evidence_metadata": [
+            {
+                "evidence_name": "Relay event report",
+                "source_type": "relay",
+                "timestamp_relation": "during_event",
+                "evidence_age_days": 1,
+                "verified": True,
+            },
+            {
+                "evidence_name": "Relay event report",
+                "source_type": "relay",
+                "timestamp_relation": "during_event",
+                "evidence_age_days": 1,
+                "verified": True,
+            },
+        ],
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 422
+    assert "unique evidence_name" in response.text
