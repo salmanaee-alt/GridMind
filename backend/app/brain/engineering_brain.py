@@ -466,6 +466,18 @@ class EngineeringBrain:
         ranked_hypotheses: list[dict],
         original_hypotheses: list[dict],
     ) -> None:
+        hypothesis_object_ids = [
+            id(hypothesis)
+            for hypothesis in original_hypotheses
+        ]
+
+        if len(hypothesis_object_ids) != len(
+            set(hypothesis_object_ids)
+        ):
+            raise ValueError(
+                "Ranking audit requires unique hypothesis objects."
+            )
+
         original_positions = {
             id(hypothesis): position
             for position, hypothesis in enumerate(
