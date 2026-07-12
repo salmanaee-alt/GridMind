@@ -30,6 +30,15 @@ def build_explanation_provenance_details(
     missing_evidence = hypothesis.get("missing_evidence", [])
     conflicts = hypothesis.get("conflicts", [])
 
+    if not isinstance(supporting_evidence, list):
+        supporting_evidence = []
+
+    if not isinstance(missing_evidence, list):
+        missing_evidence = []
+
+    if not isinstance(conflicts, list):
+        conflicts = []
+
     details: list[dict[str, Any]] = []
 
     for field_name in EXPLANATION_FIELDS:
@@ -178,3 +187,45 @@ def _find_conflict_index(
             return index
 
     return None
+
+
+def summarize_explanation_provenance_integrity(
+    details: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not isinstance(details, list):
+        details = []
+
+    total_statement_count = len(details)
+
+    traceable_statement_count = sum(
+        1
+        for item in details
+        if isinstance(item, dict)
+        and item.get("traceable") is True
+    )
+
+    unresolved_statement_count = (
+        total_statement_count - traceable_statement_count
+    )
+
+    if total_statement_count == 0:
+        status = "not_applicable"
+        traceability_ratio = None
+    elif unresolved_statement_count == 0:
+        status = "complete"
+        traceability_ratio = 1.0
+    else:
+        status = "incomplete"
+        traceability_ratio = round(
+            traceable_statement_count / total_statement_count,
+            2,
+        )
+
+    return {
+        "status": status,
+        "total_statement_count": total_statement_count,
+        "traceable_statement_count": traceable_statement_count,
+        "unresolved_statement_count": unresolved_statement_count,
+        "traceability_ratio": traceability_ratio,
+        "affects_decision": False,
+    }

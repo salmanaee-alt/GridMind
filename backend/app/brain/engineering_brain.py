@@ -6,6 +6,7 @@ from typing import Any
 from app.brain.engineering_session import EngineeringSession, InvestigationStatus
 from app.brain.explanation_provenance import (
     build_explanation_provenance_details,
+    summarize_explanation_provenance_integrity,
 )
 from app.transformer.evidence_quality import score_evidence_quality
 
@@ -441,8 +442,17 @@ class EngineeringBrain:
         hypotheses: list[dict],
     ) -> None:
         for hypothesis in hypotheses:
-            hypothesis["explanation_provenance_details"] = (
+            provenance_details = (
                 build_explanation_provenance_details(hypothesis)
+            )
+
+            hypothesis["explanation_provenance_details"] = (
+                provenance_details
+            )
+            hypothesis["explanation_provenance_integrity"] = (
+                summarize_explanation_provenance_integrity(
+                    provenance_details
+                )
             )
 
     def _rank_hypotheses(self, hypotheses: list[dict]) -> list[dict]:
