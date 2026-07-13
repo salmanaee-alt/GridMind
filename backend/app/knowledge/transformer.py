@@ -13,12 +13,12 @@ INTERNAL_TRANSFORMER_FAULT = EngineeringKnowledgeObject(
     title="Internal Transformer Fault",
     domain="transformer",
     category="failure_mode",
-    version="1.0.0",
-    status="approved",
+    version="1.0.1",
+    status="draft",
     definition=(
-        "An electrical or mechanical fault occurring within "
-        "the transformer protection zone and involving an "
-        "internal transformer component."
+        "An electrical fault, or a mechanical defect with "
+        "electrically or diagnostically observable effects, "
+        "occurring within the transformer protection zone."
     ),
     physical_principles=(
         "An internal electrical fault can create differential "
@@ -74,11 +74,12 @@ INTERNAL_TRANSFORMER_FAULT = EngineeringKnowledgeObject(
     ),
     relationships=(
         EngineeringRelationship(
-            relationship_type="contradicts",
+            relationship_type="weakens",
             target_knowledge_id="TR-EKO-0002",
             description=(
-                "Magnetizing inrush is a principal alternative "
-                "explanation for transformer differential current."
+                "Strong magnetizing-inrush evidence weakens an "
+                "internal-fault-only interpretation but does not "
+                "prove that the phenomena cannot coexist."
             ),
         ),
         EngineeringRelationship(
@@ -103,6 +104,16 @@ INTERNAL_TRANSFORMER_FAULT = EngineeringKnowledgeObject(
             organization="IEC",
             document_id="60076-1",
             title="Power transformers - General",
+            clause=None,
+        ),
+        EngineeringReference(
+            reference_type="standard",
+            organization="IEC",
+            document_id="60599",
+            title=(
+                "Mineral oil-filled electrical equipment in service - "
+                "Guidance on the interpretation of dissolved and free gases analysis"
+            ),
             clause=None,
         ),
     ),
@@ -135,13 +146,23 @@ INTERNAL_TRANSFORMER_FAULT = EngineeringKnowledgeObject(
         "internal transformer fault.",
         "Some incipient internal faults may not produce immediately "
         "conclusive waveform or gas evidence.",
+        "Dissolved-gas evidence depends on fault energy, gas-generation "
+        "rate, oil circulation, sampling time, and sampling quality.",
     ),
     revision_history=(
         KnowledgeRevision(
             version="1.0.0",
             change_summary=(
-                "Initial approved internal transformer fault "
-                "knowledge object."
+                "Initial internal transformer fault knowledge object."
+            ),
+            changed_by="GridMind Engineering",
+        ),
+        KnowledgeRevision(
+            version="1.0.1",
+            change_summary=(
+                "Demoted to draft pending specialist review; refined "
+                "diagnostic observability, relationship semantics, "
+                "DGA reference, and known limitations."
             ),
             changed_by="GridMind Engineering",
         ),
@@ -154,12 +175,12 @@ MAGNETIZING_INRUSH = EngineeringKnowledgeObject(
     title="Magnetizing Inrush",
     domain="transformer",
     category="operating_phenomenon",
-    version="1.0.0",
-    status="approved",
+    version="1.0.1",
+    status="draft",
     definition=(
         "A transient magnetizing-current condition that can occur "
-        "when a transformer is energized or when system conditions "
-        "produce a sudden change in core flux."
+        "during transformer energization or voltage recovery when "
+        "the resulting flux trajectory drives the core into saturation."
     ),
     physical_principles=(
         "Residual flux and the energization point on the voltage "
@@ -205,11 +226,12 @@ MAGNETIZING_INRUSH = EngineeringKnowledgeObject(
     ),
     relationships=(
         EngineeringRelationship(
-            relationship_type="contradicts",
+            relationship_type="weakens",
             target_knowledge_id="TR-EKO-0001",
             description=(
-                "Inrush can explain differential current without "
-                "requiring an internal-fault conclusion."
+                "Strong inrush evidence weakens an internal-fault-only "
+                "interpretation but does not exclude simultaneous "
+                "internal-fault evidence."
             ),
         ),
         EngineeringRelationship(
@@ -257,12 +279,23 @@ MAGNETIZING_INRUSH = EngineeringKnowledgeObject(
         "Modern transformer designs and switching conditions may "
         "produce inrush signatures that differ from simplified "
         "textbook patterns.",
+        "Harmonic-restraint behavior depends on relay design, settings, "
+        "waveform characteristics, and the duration of the transient.",
     ),
     revision_history=(
         KnowledgeRevision(
             version="1.0.0",
             change_summary=(
-                "Initial approved magnetizing inrush knowledge object."
+                "Initial magnetizing inrush knowledge object."
+            ),
+            changed_by="GridMind Engineering",
+        ),
+        KnowledgeRevision(
+            version="1.0.1",
+            change_summary=(
+                "Demoted to draft pending specialist review; refined "
+                "energization scope, relationship semantics, and "
+                "harmonic-restraint limitations."
             ),
             changed_by="GridMind Engineering",
         ),
@@ -275,8 +308,8 @@ CT_SATURATION = EngineeringKnowledgeObject(
     title="CT Saturation",
     domain="transformer",
     category="measurement_phenomenon",
-    version="1.0.0",
-    status="approved",
+    version="1.0.1",
+    status="draft",
     definition=(
         "A condition in which a current transformer cannot reproduce "
         "the primary current accurately because its magnetic core "
@@ -384,7 +417,14 @@ CT_SATURATION = EngineeringKnowledgeObject(
         KnowledgeRevision(
             version="1.0.0",
             change_summary=(
-                "Initial approved CT saturation knowledge object."
+                "Initial CT saturation knowledge object."
+            ),
+            changed_by="GridMind Engineering",
+        ),
+        KnowledgeRevision(
+            version="1.0.1",
+            change_summary=(
+                "Demoted to draft pending specialist engineering review."
             ),
             changed_by="GridMind Engineering",
         ),
