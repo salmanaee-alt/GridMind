@@ -66,6 +66,10 @@ def score_evidence_quality(
         dict.fromkeys(available_evidence)
     )
 
+    missing_required_evidence = list(
+        dict.fromkeys(missing_required_evidence)
+    )
+
     total_expected = len(set(available_evidence + missing_required_evidence))
 
     if total_expected == 0:
