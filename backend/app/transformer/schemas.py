@@ -1,8 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 
 DGAStatus = Literal[
@@ -33,6 +33,23 @@ BreakerStatus = Literal[
     "failed_to_open",
 ]
 
+
+MAX_COLLECTION_ITEMS = 100
+MAX_SHORT_TEXT_LENGTH = 200
+MAX_EVIDENCE_TEXT_LENGTH = 500
+MAX_EVENT_DESCRIPTION_LENGTH = 2000
+MAX_NOTES_LENGTH = 5000
+
+ShortText = Annotated[
+    str,
+    StringConstraints(max_length=MAX_SHORT_TEXT_LENGTH),
+]
+
+EvidenceText = Annotated[
+    str,
+    StringConstraints(max_length=MAX_EVIDENCE_TEXT_LENGTH),
+]
+
 EvidenceSourceType = Literal[
     "relay",
     "comtrade",
@@ -54,7 +71,7 @@ EvidenceTimestampRelation = Literal[
 
 
 class EvidenceMetadata(BaseModel):
-    evidence_name: str = Field(
+    evidence_name: EvidenceText = Field(
         description="Name of the evidence item. It must match an item in available_data, missing_data, or evidence added by request flags."
     )
     source_type: EvidenceSourceType = Field(
@@ -134,13 +151,28 @@ class TransformerDifferentialTripRequest(BaseModel):
         }
     )
 
-    asset_id: str = Field(default="Transformer T1")
-    voltage_level: str | None = Field(default=None)
-    event_description: str = Field(default="Transformer differential relay trip")
-    relay_name: str | None = Field(default=None)
+    asset_id: ShortText = Field(
+        default="Transformer T1"
+    )
+    voltage_level: ShortText | None = Field(
+        default=None
+    )
+    event_description: str = Field(
+        default="Transformer differential relay trip",
+        max_length=MAX_EVENT_DESCRIPTION_LENGTH,
+    )
+    relay_name: ShortText | None = Field(
+        default=None
+    )
 
-    available_data: list[str] = Field(default_factory=list)
-    missing_data: list[str] = Field(default_factory=list)
+    available_data: list[EvidenceText] = Field(
+        default_factory=list,
+        max_length=MAX_COLLECTION_ITEMS,
+    )
+    missing_data: list[EvidenceText] = Field(
+        default_factory=list,
+        max_length=MAX_COLLECTION_ITEMS,
+    )
 
     comtrade_available: bool = Field(default=False)
     dga_available: bool = Field(default=False)
@@ -158,13 +190,22 @@ class TransformerDifferentialTripRequest(BaseModel):
         description="LV side breaker status after the transformer differential trip."
     )
 
-    relay_targets: list[str] = Field(default_factory=list)
+    relay_targets: list[EvidenceText] = Field(
+        default_factory=list,
+        max_length=MAX_COLLECTION_ITEMS,
+    )
     dga_status: DGAStatus = Field(default="not_available")
     comtrade_summary: COMTRADESummary = Field(default="not_available")
 
-    evidence_metadata: list[EvidenceMetadata] = Field(default_factory=list)
+    evidence_metadata: list[EvidenceMetadata] = Field(
+        default_factory=list,
+        max_length=MAX_COLLECTION_ITEMS,
+    )
 
-    notes: str | None = Field(default=None)
+    notes: str | None = Field(
+        default=None,
+        max_length=MAX_NOTES_LENGTH,
+    )
 
     @model_validator(mode="after")
     def validate_evidence_metadata_names(self) -> "TransformerDifferentialTripRequest":

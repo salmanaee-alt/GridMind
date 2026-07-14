@@ -1751,3 +1751,93 @@ def test_transformer_api_rejects_duplicate_evidence_metadata_names():
 
     assert response.status_code == 422
     assert "unique evidence_name" in response.text
+
+
+def test_transformer_api_rejects_oversized_collection_inputs():
+    oversized = [
+        f"Evidence item {index}"
+        for index in range(101)
+    ]
+
+    for field_name in (
+        "available_data",
+        "missing_data",
+        "relay_targets",
+    ):
+        response = client.post(
+            "/transformer/differential-trip",
+            json={
+                field_name: oversized,
+            },
+        )
+
+        assert response.status_code == 422
+
+
+def test_transformer_api_rejects_oversized_evidence_metadata():
+    available_data = [
+        "Available evidence",
+    ]
+    missing_data = [
+        f"Missing evidence {index}"
+        for index in range(100)
+    ]
+    evidence_names = available_data + missing_data
+
+    evidence_metadata = [
+        {
+            "evidence_name": evidence_name,
+            "source_type": "unknown",
+            "timestamp_relation": "unknown",
+            "evidence_age_days": 0,
+            "verified": False,
+        }
+        for evidence_name in evidence_names
+    ]
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json={
+            "available_data": available_data,
+            "missing_data": missing_data,
+            "evidence_metadata": evidence_metadata,
+        },
+    )
+
+    assert len(available_data) <= 100
+    assert len(missing_data) <= 100
+    assert len(evidence_metadata) == 101
+    assert response.status_code == 422
+
+
+def test_transformer_api_rejects_oversized_text_inputs():
+    cases = {
+        "asset_id": "A" * 201,
+        "voltage_level": "V" * 201,
+        "event_description": "E" * 2001,
+        "relay_name": "R" * 201,
+        "notes": "N" * 5001,
+    }
+
+    for field_name, value in cases.items():
+        response = client.post(
+            "/transformer/differential-trip",
+            json={
+                field_name: value,
+            },
+        )
+
+        assert response.status_code == 422
+
+
+def test_transformer_api_rejects_oversized_evidence_item_text():
+    response = client.post(
+        "/transformer/differential-trip",
+        json={
+            "available_data": [
+                "E" * 501,
+            ],
+        },
+    )
+
+    assert response.status_code == 422
