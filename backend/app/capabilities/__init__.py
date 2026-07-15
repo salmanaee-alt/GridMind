@@ -10,12 +10,18 @@ from app.capabilities.contracts import (
 from app.capabilities.manifest import (
     CapabilityManifest,
 )
+from app.capabilities.registry import (
+    CapabilityRegistration,
+    CapabilityRegistry,
+)
 
 __all__ = [
     "CAPABILITY_ABI_VERSION",
     "CapabilityManifest",
     "CapabilityMetadata",
     "CapabilityRequest",
+    "CapabilityRegistration",
+    "CapabilityRegistry",
     "CapabilityResult",
     "EngineeringCapability",
 ]
