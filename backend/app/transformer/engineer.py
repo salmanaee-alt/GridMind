@@ -1,7 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
+from app.knowledge.bootstrap import build_default_registry
+from app.knowledge.context_builder import build_knowledge_context
 from app.transformer.knowledge import get_transformer_event_knowledge
 from app.transformer.reasoning import evaluate_differential_trip_hypotheses
 from app.transformer.schemas import TransformerDifferentialTripRequest
@@ -99,6 +101,14 @@ class TransformerEngineer:
             },
         )
 
+        knowledge_context = build_knowledge_context(
+            build_default_registry()
+        )
+
+        session.metadata["knowledge_context"] = (
+            knowledge_context.model_dump()
+        )
+
         session.add_observation({
             "asset_id": asset_id,
             "voltage_level": voltage_level,
@@ -162,9 +172,3 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
-
-
-
-
-
-
