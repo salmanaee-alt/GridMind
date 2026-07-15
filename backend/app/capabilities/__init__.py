@@ -7,9 +7,13 @@ from app.capabilities.contracts import (
     CapabilityRequest,
     CapabilityResult,
 )
+from app.capabilities.manifest import (
+    CapabilityManifest,
+)
 
 __all__ = [
     "CAPABILITY_ABI_VERSION",
+    "CapabilityManifest",
     "CapabilityMetadata",
     "CapabilityRequest",
     "CapabilityResult",
