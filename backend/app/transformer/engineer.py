@@ -109,6 +109,24 @@ class TransformerEngineer:
             knowledge_context.model_dump()
         )
 
+        session.metadata["knowledge_audit"] = {
+            "schema_version": knowledge_context.schema_version,
+            "registry_source": "default_registry",
+            "knowledge_count": len(
+                knowledge_context.shadow.knowledge
+            ),
+            "knowledge_ids": [
+                item.knowledge_id
+                for item in knowledge_context.shadow.knowledge
+            ],
+            "shadow_mode": (
+                knowledge_context.shadow.enabled
+            ),
+            "affects_decision": (
+                knowledge_context.shadow.affects_decision
+            ),
+        }
+
         session.add_observation({
             "asset_id": asset_id,
             "voltage_level": voltage_level,
