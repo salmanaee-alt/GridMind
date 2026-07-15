@@ -11,11 +11,15 @@ from app.capabilities.knowledge.capability import (
 from app.capabilities.knowledge.generator import (
     KnowledgeCandidateGenerator,
 )
+from app.capabilities.knowledge.manifest import (
+    KNOWLEDGE_CANDIDATE_MANIFEST,
+)
 
 __all__ = [
     "CandidateReason",
     "CandidateSource",
     "KNOWLEDGE_CANDIDATE_CAPABILITY_ID",
+    "KNOWLEDGE_CANDIDATE_MANIFEST",
     "KnowledgeCandidate",
     "KnowledgeCandidateCapability",
     "KnowledgeCandidateGenerator",
