@@ -9,6 +9,9 @@ from app.capabilities.contracts import (
     CapabilityRequest,
     CapabilityResult,
 )
+from app.capabilities.errors import (
+    CapabilityError,
+)
 from app.capabilities.registry import (
     CapabilityRegistry,
 )
@@ -27,7 +30,7 @@ class CapabilityExecution(BaseModel):
     duration_ms: float = Field(
         ge=0,
     )
-    error: dict[str, Any] | None = None
+    error: CapabilityError | None = None
 
 
 class CapabilityRuntime:
@@ -62,11 +65,14 @@ class CapabilityRuntime:
         if registration is None:
             return self._error_execution(
                 capability_id=capability_id,
+                request_id=request.request_id,
                 error_type="not_found",
                 message=(
                     f"Capability {capability_id!r} "
                     "is not registered."
                 ),
+                stage="runtime",
+                retryable=False,
                 started_at=started_at,
             )
 
@@ -83,35 +89,79 @@ class CapabilityRuntime:
         ):
             return self._error_execution(
                 capability_id=capability_id,
+                request_id=request.request_id,
                 error_type="shadow_mode_required",
                 message=(
                     "Capability requires shadow execution mode."
                 ),
+                stage="runtime",
+                retryable=False,
                 started_at=started_at,
             )
 
         try:
             capability.validate(request)
-            result = capability.execute(request)
-
-            if result.capability_id != capability_id:
-                raise ValueError(
-                    "Capability result capability_id does not "
-                    "match the invoked capability."
-                )
-
-            if result.affects_decision is not False:
-                raise ValueError(
-                    "Capability result must not affect decisions."
-                )
-
-            audit = capability.audit(result)
-
         except Exception as exc:
             return self._error_execution(
                 capability_id=capability_id,
+                request_id=request.request_id,
+                error_type="validation_error",
+                message=str(exc),
+                stage="validate",
+                retryable=False,
+                started_at=started_at,
+            )
+
+        try:
+            result = capability.execute(request)
+        except Exception as exc:
+            return self._error_execution(
+                capability_id=capability_id,
+                request_id=request.request_id,
                 error_type="execution_error",
                 message=str(exc),
+                stage="execute",
+                retryable=False,
+                started_at=started_at,
+            )
+
+        if result.capability_id != capability_id:
+            return self._error_execution(
+                capability_id=capability_id,
+                request_id=request.request_id,
+                error_type="result_integrity_error",
+                message=(
+                    "Capability result capability_id does not "
+                    "match the invoked capability."
+                ),
+                stage="runtime",
+                retryable=False,
+                started_at=started_at,
+            )
+
+        if result.affects_decision is not False:
+            return self._error_execution(
+                capability_id=capability_id,
+                request_id=request.request_id,
+                error_type="result_integrity_error",
+                message=(
+                    "Capability result must not affect decisions."
+                ),
+                stage="runtime",
+                retryable=False,
+                started_at=started_at,
+            )
+
+        try:
+            audit = capability.audit(result)
+        except Exception as exc:
+            return self._error_execution(
+                capability_id=capability_id,
+                request_id=request.request_id,
+                error_type="audit_error",
+                message=str(exc),
+                stage="audit",
+                retryable=False,
                 started_at=started_at,
             )
 
@@ -128,8 +178,11 @@ class CapabilityRuntime:
         self,
         *,
         capability_id: str,
+        request_id: str,
         error_type: str,
         message: str,
+        stage: str,
+        retryable: bool,
         started_at: float,
     ) -> CapabilityExecution:
         return CapabilityExecution(
@@ -144,10 +197,14 @@ class CapabilityRuntime:
             duration_ms=self._duration_ms(
                 started_at
             ),
-            error={
-                "type": error_type,
-                "message": message,
-            },
+            error=CapabilityError(
+                error_type=error_type,
+                message=message,
+                capability_id=capability_id,
+                request_id=request_id,
+                stage=stage,
+                retryable=retryable,
+            ),
         )
 
     @staticmethod

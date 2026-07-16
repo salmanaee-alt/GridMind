@@ -170,7 +170,7 @@ def test_runtime_rejects_unknown_capability():
     )
 
     assert execution.result.status == "error"
-    assert execution.error["type"] == "not_found"
+    assert execution.error.error_type == "not_found"
     assert execution.audit == {}
     assert execution.result.affects_decision is False
 
@@ -186,7 +186,7 @@ def test_runtime_enforces_shadow_mode_centrally():
     )
 
     assert execution.result.status == "error"
-    assert execution.error["type"] == "shadow_mode_required"
+    assert execution.error.error_type == "shadow_mode_required"
 
 
 def test_runtime_isolates_execution_exception():
@@ -198,8 +198,8 @@ def test_runtime_isolates_execution_exception():
     )
 
     assert execution.result.status == "error"
-    assert execution.error["type"] == "execution_error"
-    assert "simulated failure" in execution.error["message"]
+    assert execution.error.error_type == "execution_error"
+    assert "simulated failure" in execution.error.message
     assert execution.result.affects_decision is False
 
 

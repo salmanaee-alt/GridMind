@@ -7,6 +7,9 @@ from app.capabilities.contracts import (
     CapabilityRequest,
     CapabilityResult,
 )
+from app.capabilities.errors import (
+    CapabilityError,
+)
 from app.capabilities.manifest import (
     CapabilityManifest,
 )
@@ -21,6 +24,7 @@ from app.capabilities.runtime import (
 
 __all__ = [
     "CAPABILITY_ABI_VERSION",
+    "CapabilityError",
     "CapabilityManifest",
     "CapabilityMetadata",
     "CapabilityRequest",
