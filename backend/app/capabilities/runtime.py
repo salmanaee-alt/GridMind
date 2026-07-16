@@ -347,7 +347,9 @@ class CapabilityRuntime:
             )
 
         try:
-            worker_output = result_queue.get_nowait()
+            worker_output = result_queue.get(
+                timeout=0.2,
+            )
         except Empty:
             result_queue.close()
             result_queue.join_thread()
