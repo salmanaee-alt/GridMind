@@ -73,9 +73,6 @@ class KnowledgeCandidateCapability(
                 "shadow execution only."
             )
 
-        self._generator.generate(
-            domain=domain,
-        )
 
     def execute(
         self,
