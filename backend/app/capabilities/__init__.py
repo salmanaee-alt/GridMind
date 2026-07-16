@@ -14,14 +14,20 @@ from app.capabilities.registry import (
     CapabilityRegistration,
     CapabilityRegistry,
 )
+from app.capabilities.runtime import (
+    CapabilityExecution,
+    CapabilityRuntime,
+)
 
 __all__ = [
     "CAPABILITY_ABI_VERSION",
     "CapabilityManifest",
     "CapabilityMetadata",
     "CapabilityRequest",
+    "CapabilityExecution",
     "CapabilityRegistration",
     "CapabilityRegistry",
     "CapabilityResult",
+    "CapabilityRuntime",
     "EngineeringCapability",
 ]
