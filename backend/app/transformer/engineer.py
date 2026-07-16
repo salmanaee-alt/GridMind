@@ -1,5 +1,22 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
+from app.capabilities.contracts import (
+    CapabilityRequest,
+)
+from app.capabilities.knowledge import (
+    KNOWLEDGE_CANDIDATE_CAPABILITY_ID,
+    KNOWLEDGE_CANDIDATE_MANIFEST,
+    KnowledgeCandidateCapability,
+)
+from app.capabilities.registry import (
+    CapabilityRegistry,
+)
+from app.capabilities.runtime import (
+    CapabilityRuntime,
+)
+
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -101,8 +118,10 @@ class TransformerEngineer:
             },
         )
 
+        knowledge_registry = build_default_registry()
+
         knowledge_context = build_knowledge_context(
-            build_default_registry()
+            knowledge_registry
         )
 
         session.metadata["knowledge_context"] = (
@@ -126,6 +145,74 @@ class TransformerEngineer:
                 knowledge_context.shadow.affects_decision
             ),
         }
+
+        capability_registry = CapabilityRegistry()
+
+        capability_registry.register(
+            capability=KnowledgeCandidateCapability(
+                registry=knowledge_registry,
+            ),
+            manifest=KNOWLEDGE_CANDIDATE_MANIFEST,
+        )
+
+        capability_runtime = CapabilityRuntime(
+            registry=capability_registry,
+        )
+
+        capability_execution = capability_runtime.invoke(
+            capability_id=(
+                KNOWLEDGE_CANDIDATE_CAPABILITY_ID
+            ),
+            request=CapabilityRequest(
+                request_id=(
+                    "REQ-TRANSFORMER-KNOWLEDGE-"
+                    f"{uuid4().hex}"
+                ),
+                payload={
+                    "domain": "transformer",
+                },
+                context={
+                    "execution_mode": "shadow",
+                },
+            ),
+        )
+
+        candidate_result = (
+            capability_execution.result.output.get(
+                "knowledge_candidate_result",
+                {},
+            )
+        )
+
+        session.metadata["capability_executions"] = [
+            {
+                "capability_id": (
+                    KNOWLEDGE_CANDIDATE_CAPABILITY_ID
+                ),
+                "status": (
+                    capability_execution.result.status
+                ),
+                "execution_mode": "shadow",
+                "affects_decision": (
+                    capability_execution.result.affects_decision
+                ),
+                "duration_ms": (
+                    capability_execution.duration_ms
+                ),
+                "candidate_count": (
+                    candidate_result.get(
+                        "candidate_count",
+                        0,
+                    )
+                ),
+                "error": (
+                    capability_execution.error.model_dump()
+                    if capability_execution.error
+                    is not None
+                    else None
+                ),
+            },
+        ]
 
         session.add_observation({
             "asset_id": asset_id,
