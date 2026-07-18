@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from uuid import uuid4
 
@@ -15,6 +15,13 @@ from app.capabilities.registry import (
 )
 from app.capabilities.runtime import (
     CapabilityRuntime,
+)
+
+from app.capabilities.knowledge_relevance.capability import (
+    KnowledgeRelevanceCapability,
+)
+from app.capabilities.knowledge_relevance.capability_manifest import (
+    KNOWLEDGE_RELEVANCE_CAPABILITY_MANIFEST,
 )
 
 from app.brain.engineering_brain import EngineeringBrain
@@ -155,6 +162,15 @@ class TransformerEngineer:
             manifest=KNOWLEDGE_CANDIDATE_MANIFEST,
         )
 
+        capability_registry.register(
+            capability=KnowledgeRelevanceCapability(
+                registry=knowledge_registry,
+            ),
+            manifest=(
+                KNOWLEDGE_RELEVANCE_CAPABILITY_MANIFEST
+            ),
+        )
+
         capability_runtime = CapabilityRuntime(
             registry=capability_registry,
         )
@@ -279,4 +295,6 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
+
+
 
