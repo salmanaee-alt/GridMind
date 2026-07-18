@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from uuid import uuid4
 
@@ -159,6 +159,8 @@ class TransformerEngineer:
             registry=capability_registry,
         )
 
+        capability_executions = []
+
         capability_execution = capability_runtime.invoke(
             capability_id=(
                 KNOWLEDGE_CANDIDATE_CAPABILITY_ID
@@ -184,36 +186,36 @@ class TransformerEngineer:
             )
         )
 
-        session.metadata["capability_executions"] = [
-            {
-                "capability_id": (
-                    KNOWLEDGE_CANDIDATE_CAPABILITY_ID
-                ),
-                "status": (
-                    capability_execution.result.status
-                ),
-                "execution_mode": "shadow",
-                "affects_decision": (
-                    capability_execution.result.affects_decision
-                ),
-                "duration_ms": (
-                    capability_execution.duration_ms
-                ),
-                "candidate_count": (
-                    candidate_result.get(
-                        "candidate_count",
-                        0,
-                    )
-                ),
-                "error": (
-                    capability_execution.error.model_dump()
-                    if capability_execution.error
-                    is not None
-                    else None
-                ),
-            },
-        ]
+        capability_executions.append({
+            "capability_id": (
+                KNOWLEDGE_CANDIDATE_CAPABILITY_ID
+            ),
+            "status": (
+                capability_execution.result.status
+            ),
+            "execution_mode": "shadow",
+            "affects_decision": (
+                capability_execution.result.affects_decision
+            ),
+            "duration_ms": (
+                capability_execution.duration_ms
+            ),
+            "candidate_count": (
+                candidate_result.get(
+                    "candidate_count",
+                    0,
+                )
+            ),
+            "error": (
+                capability_execution.error.model_dump()
+                if capability_execution.error is not None
+                else None
+            ),
+        })
 
+        session.metadata["capability_executions"] = (
+            capability_executions
+        )
         session.add_observation({
             "asset_id": asset_id,
             "voltage_level": voltage_level,
@@ -277,3 +279,4 @@ class TransformerEngineer:
             "status": completed_session.status.value,
             "session": completed_session.to_dict(),
         }
+
