@@ -18,6 +18,7 @@ from app.capabilities.runtime import (
 )
 
 from app.capabilities.knowledge_relevance.capability import (
+    KNOWLEDGE_RELEVANCE_CAPABILITY_ID,
     KnowledgeRelevanceCapability,
 )
 from app.capabilities.knowledge_relevance.capability_manifest import (
@@ -202,6 +203,40 @@ class TransformerEngineer:
             )
         )
 
+        relevance_execution = capability_runtime.invoke(
+            capability_id=(
+                KNOWLEDGE_RELEVANCE_CAPABILITY_ID
+            ),
+            request=CapabilityRequest(
+                request_id=(
+                    "REQ-TRANSFORMER-RELEVANCE-"
+                    f"{uuid4().hex}"
+                ),
+                payload={
+                    "domain": "transformer",
+                    "asset_type": "power_transformer",
+                    "available_evidence": tuple(
+                        available_evidence
+                    ),
+                    "missing_evidence": tuple(
+                        missing_required_evidence
+                    ),
+                    "investigation_stage": "initial",
+                    "max_results": 5,
+                },
+                context={
+                    "execution_mode": "shadow",
+                },
+            ),
+        )
+
+        relevance_result = (
+            relevance_execution.result.output.get(
+                "knowledge_relevance_result",
+                {},
+            )
+        )
+
         capability_executions.append({
             "capability_id": (
                 KNOWLEDGE_CANDIDATE_CAPABILITY_ID
@@ -225,6 +260,39 @@ class TransformerEngineer:
             "error": (
                 capability_execution.error.model_dump()
                 if capability_execution.error is not None
+                else None
+            ),
+        })
+
+        capability_executions.append({
+            "capability_id": (
+                KNOWLEDGE_RELEVANCE_CAPABILITY_ID
+            ),
+            "status": (
+                relevance_execution.result.status
+            ),
+            "execution_mode": "shadow",
+            "affects_decision": (
+                relevance_execution.result.affects_decision
+            ),
+            "duration_ms": (
+                relevance_execution.duration_ms
+            ),
+            "selected_count": len(
+                relevance_result.get(
+                    "selected_ids",
+                    (),
+                )
+            ),
+            "ignored_count": len(
+                relevance_result.get(
+                    "ignored_ids",
+                    (),
+                )
+            ),
+            "error": (
+                relevance_execution.error.model_dump()
+                if relevance_execution.error is not None
                 else None
             ),
         })

@@ -41,7 +41,7 @@ def test_transformer_session_exposes_capability_execution():
     )
     assert len(
         metadata["capability_executions"]
-    ) == 1
+    ) == 2
 
 
 def test_capability_execution_summary_is_shadow_only():
@@ -71,13 +71,35 @@ def test_capability_execution_reports_candidate_count():
     assert execution["candidate_count"] == 3
 
 
+def test_knowledge_relevance_execution_is_shadow_only():
+    session = invoke_transformer_api()
+
+    execution = session["metadata"][
+        "capability_executions"
+    ][1]
+
+    assert execution["capability_id"] == (
+        "CAP-KNOWLEDGERELEVANCE-0001"
+    )
+    assert execution["status"] == "success"
+    assert execution["execution_mode"] == "shadow"
+    assert execution["affects_decision"] is False
+    assert execution["duration_ms"] >= 0
+    assert execution["selected_count"] >= 0
+    assert execution["ignored_count"] >= 0
+    assert execution["error"] is None
+
+
 def test_capability_output_does_not_leak_into_decisions():
     session = invoke_transformer_api()
 
     for decision in session["decisions"]:
         assert "capability_executions" not in decision
         assert "knowledge_candidate_result" not in decision
+        assert "knowledge_relevance_result" not in decision
         assert "candidate_count" not in decision
+        assert "selected_count" not in decision
+        assert "ignored_count" not in decision
 
 
 def test_capability_output_does_not_leak_into_reports():
@@ -86,7 +108,10 @@ def test_capability_output_does_not_leak_into_reports():
     for report in session["reports"]:
         assert "capability_executions" not in report
         assert "knowledge_candidate_result" not in report
+        assert "knowledge_relevance_result" not in report
         assert "candidate_count" not in report
+        assert "selected_count" not in report
+        assert "ignored_count" not in report
 
 
 def test_capability_execution_does_not_mutate_engineering_outputs():
