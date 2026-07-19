@@ -68,3 +68,22 @@ class CapabilityResult(FrozenCapabilityModel):
         default_factory=dict,
     )
     affects_decision: Literal[False] = False
+
+class CapabilityExecutionRecord(FrozenCapabilityModel):
+    """
+    Standard audit record for every capability execution.
+
+    This model contains execution metadata only.
+    It must never contain engineering decisions.
+    """
+
+    capability_id: str = Field(
+        pattern=r"^CAP-[A-Z0-9]{2,20}-[0-9]{4,}$"
+    )
+    status: CapabilityStatus
+    execution_mode: Literal["shadow"]
+    affects_decision: Literal[False] = False
+    duration_ms: float = Field(
+        ge=0,
+    )
+    error: dict[str, Any] | None = None

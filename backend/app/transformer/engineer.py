@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.capabilities.contracts import (
+    CapabilityExecutionRecord,
     CapabilityRequest,
 )
 from app.capabilities.knowledge import (
@@ -237,65 +238,80 @@ class TransformerEngineer:
             )
         )
 
-        capability_executions.append({
-            "capability_id": (
+        candidate_record = CapabilityExecutionRecord(
+            capability_id=(
                 KNOWLEDGE_CANDIDATE_CAPABILITY_ID
             ),
-            "status": (
+            status=(
                 capability_execution.result.status
             ),
-            "execution_mode": "shadow",
-            "affects_decision": (
+            execution_mode="shadow",
+            affects_decision=(
                 capability_execution.result.affects_decision
             ),
-            "duration_ms": (
+            duration_ms=(
                 capability_execution.duration_ms
             ),
-            "candidate_count": (
-                candidate_result.get(
-                    "candidate_count",
-                    0,
-                )
-            ),
-            "error": (
+            error=(
                 capability_execution.error.model_dump()
                 if capability_execution.error is not None
                 else None
             ),
-        })
+        )
 
-        capability_executions.append({
-            "capability_id": (
+        candidate_audit = candidate_record.model_dump()
+
+        candidate_audit["candidate_count"] = len(
+            candidate_result.get(
+                "candidates",
+                (),
+            )
+        )
+
+        capability_executions.append(
+            candidate_audit
+        )
+
+        relevance_record = CapabilityExecutionRecord(
+            capability_id=(
                 KNOWLEDGE_RELEVANCE_CAPABILITY_ID
             ),
-            "status": (
+            status=(
                 relevance_execution.result.status
             ),
-            "execution_mode": "shadow",
-            "affects_decision": (
+            execution_mode="shadow",
+            affects_decision=(
                 relevance_execution.result.affects_decision
             ),
-            "duration_ms": (
+            duration_ms=(
                 relevance_execution.duration_ms
             ),
-            "selected_count": len(
-                relevance_result.get(
-                    "selected_ids",
-                    (),
-                )
-            ),
-            "ignored_count": len(
-                relevance_result.get(
-                    "ignored_ids",
-                    (),
-                )
-            ),
-            "error": (
+            error=(
                 relevance_execution.error.model_dump()
                 if relevance_execution.error is not None
                 else None
             ),
-        })
+        )
+
+        relevance_audit = relevance_record.model_dump()
+
+        relevance_audit["selected_count"] = len(
+            relevance_result.get(
+                "selected_ids",
+                (),
+            )
+        )
+
+        relevance_audit["ignored_count"] = len(
+            relevance_result.get(
+                "ignored_ids",
+                (),
+            )
+        )
+
+        capability_executions.append(
+            relevance_audit
+        )
 
         session.metadata["capability_executions"] = (
             capability_executions
