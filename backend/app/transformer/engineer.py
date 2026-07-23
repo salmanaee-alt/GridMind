@@ -33,6 +33,14 @@ from app.capabilities.knowledge_relevance.capability import (
 from app.capabilities.knowledge_relevance.capability_manifest import (
     KNOWLEDGE_RELEVANCE_CAPABILITY_MANIFEST,
 )
+
+from app.capabilities.evidence_interpretation.capability import (
+    EVIDENCE_INTERPRETATION_CAPABILITY_ID,
+    EvidenceInterpretationCapability,
+)
+from app.capabilities.evidence_interpretation.capability_manifest import (
+    EVIDENCE_INTERPRETATION_CAPABILITY_MANIFEST,
+)
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -180,6 +188,13 @@ class TransformerEngineer:
             ),
         )
 
+        capability_registry.register(
+            capability=EvidenceInterpretationCapability(),
+            manifest=(
+                EVIDENCE_INTERPRETATION_CAPABILITY_MANIFEST
+            ),
+        )
+
         capability_runtime = CapabilityRuntime(
             registry=capability_registry,
         )
@@ -190,7 +205,7 @@ class TransformerEngineer:
 
         capability_policy = CapabilityPipelinePolicy(
             pipeline_id="transformer-knowledge",
-            version="0.27.0",
+            version="0.28.0",
             steps=(
                 CapabilityPipelineStep(
                     capability_id=(
@@ -203,6 +218,14 @@ class TransformerEngineer:
                     ),
                     depends_on=(
                         KNOWLEDGE_CANDIDATE_CAPABILITY_ID,
+                    ),
+                ),
+                CapabilityPipelineStep(
+                    capability_id=(
+                        EVIDENCE_INTERPRETATION_CAPABILITY_ID
+                    ),
+                    depends_on=(
+                        KNOWLEDGE_RELEVANCE_CAPABILITY_ID,
                     ),
                 ),
             ),
@@ -244,9 +267,31 @@ class TransformerEngineer:
             },
         )
 
+        evidence_interpretation_request = CapabilityRequest(
+            request_id=(
+                "REQ-TRANSFORMER-EVIDENCE-"
+                f"{uuid4().hex}"
+            ),
+            payload={
+                "domain": "transformer",
+                "asset_type": "power_transformer",
+                "available_evidence": tuple(
+                    available_evidence
+                ),
+                "missing_evidence": tuple(
+                    missing_required_evidence
+                ),
+                "investigation_stage": "initial",
+            },
+            context={
+                "execution_mode": "shadow",
+            },
+        )
+
         (
             capability_execution,
             relevance_execution,
+            evidence_interpretation_execution,
         ) = capability_orchestrator.execute_policy(
             policy=capability_policy,
             requests={
@@ -255,6 +300,9 @@ class TransformerEngineer:
                 ),
                 KNOWLEDGE_RELEVANCE_CAPABILITY_ID: (
                     relevance_request
+                ),
+                EVIDENCE_INTERPRETATION_CAPABILITY_ID: (
+                    evidence_interpretation_request
                 ),
             },
         )
@@ -344,6 +392,63 @@ class TransformerEngineer:
 
         capability_executions.append(
             relevance_audit
+        )
+
+        evidence_interpretation_result = (
+            evidence_interpretation_execution.result.output.get(
+                "evidence_interpretation_result",
+                {},
+            )
+        )
+
+        evidence_interpretation_record = (
+            CapabilityExecutionRecord(
+                capability_id=(
+                    EVIDENCE_INTERPRETATION_CAPABILITY_ID
+                ),
+                status=(
+                    evidence_interpretation_execution.result.status
+                ),
+                execution_mode="shadow",
+                affects_decision=(
+                    evidence_interpretation_execution.result.affects_decision
+                ),
+                duration_ms=(
+                    evidence_interpretation_execution.duration_ms
+                ),
+                error=(
+                    evidence_interpretation_execution.error.model_dump()
+                    if evidence_interpretation_execution.error
+                    is not None
+                    else None
+                ),
+            )
+        )
+
+        evidence_interpretation_audit = (
+            evidence_interpretation_record.model_dump()
+        )
+
+        evidence_interpretation_audit[
+            "interpretation_count"
+        ] = len(
+            evidence_interpretation_result.get(
+                "interpretations",
+                (),
+            )
+        )
+
+        evidence_interpretation_audit[
+            "unresolved_count"
+        ] = len(
+            evidence_interpretation_result.get(
+                "unresolved_evidence",
+                (),
+            )
+        )
+
+        capability_executions.append(
+            evidence_interpretation_audit
         )
 
         session.metadata["capability_executions"] = (

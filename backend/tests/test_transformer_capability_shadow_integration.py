@@ -41,7 +41,18 @@ def test_transformer_session_exposes_capability_execution():
     )
     assert len(
         metadata["capability_executions"]
-    ) == 2
+    ) == 3
+
+    capability_ids = [
+        execution["capability_id"]
+        for execution in metadata["capability_executions"]
+    ]
+
+    assert capability_ids == [
+        "CAP-KNOWLEDGE-0001",
+        "CAP-KNOWLEDGERELEVANCE-0001",
+        "CAP-EVIDENCEINTERP-0001",
+    ]
 
 
 def test_capability_execution_summary_is_shadow_only():
