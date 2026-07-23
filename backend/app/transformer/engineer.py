@@ -17,6 +17,14 @@ from app.capabilities.registry import (
 from app.capabilities.runtime import (
     CapabilityRuntime,
 )
+from app.capabilities.orchestrator import (
+    CapabilityOrchestrator,
+)
+
+from app.capabilities.pipeline import (
+    CapabilityPipelinePolicy,
+    CapabilityPipelineStep,
+)
 
 from app.capabilities.knowledge_relevance.capability import (
     KNOWLEDGE_RELEVANCE_CAPABILITY_ID,
@@ -25,7 +33,6 @@ from app.capabilities.knowledge_relevance.capability import (
 from app.capabilities.knowledge_relevance.capability_manifest import (
     KNOWLEDGE_RELEVANCE_CAPABILITY_MANIFEST,
 )
-
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -177,58 +184,85 @@ class TransformerEngineer:
             registry=capability_registry,
         )
 
-        capability_executions = []
+        capability_orchestrator = CapabilityOrchestrator(
+            runtime=capability_runtime,
+        )
 
-        capability_execution = capability_runtime.invoke(
-            capability_id=(
-                KNOWLEDGE_CANDIDATE_CAPABILITY_ID
-            ),
-            request=CapabilityRequest(
-                request_id=(
-                    "REQ-TRANSFORMER-KNOWLEDGE-"
-                    f"{uuid4().hex}"
+        capability_policy = CapabilityPipelinePolicy(
+            pipeline_id="transformer-knowledge",
+            version="0.27.0",
+            steps=(
+                CapabilityPipelineStep(
+                    capability_id=(
+                        KNOWLEDGE_CANDIDATE_CAPABILITY_ID
+                    ),
                 ),
-                payload={
-                    "domain": "transformer",
-                },
-                context={
-                    "execution_mode": "shadow",
-                },
+                CapabilityPipelineStep(
+                    capability_id=(
+                        KNOWLEDGE_RELEVANCE_CAPABILITY_ID
+                    ),
+                    depends_on=(
+                        KNOWLEDGE_CANDIDATE_CAPABILITY_ID,
+                    ),
+                ),
             ),
         )
 
+        capability_executions = []
+        candidate_request = CapabilityRequest(
+            request_id=(
+                "REQ-TRANSFORMER-KNOWLEDGE-"
+                f"{uuid4().hex}"
+            ),
+            payload={
+                "domain": "transformer",
+            },
+            context={
+                "execution_mode": "shadow",
+            },
+        )
+
+        relevance_request = CapabilityRequest(
+            request_id=(
+                "REQ-TRANSFORMER-RELEVANCE-"
+                f"{uuid4().hex}"
+            ),
+            payload={
+                "domain": "transformer",
+                "asset_type": "power_transformer",
+                "available_evidence": tuple(
+                    available_evidence
+                ),
+                "missing_evidence": tuple(
+                    missing_required_evidence
+                ),
+                "investigation_stage": "initial",
+                "max_results": 5,
+            },
+            context={
+                "execution_mode": "shadow",
+            },
+        )
+
+        (
+            capability_execution,
+            relevance_execution,
+        ) = capability_orchestrator.execute_policy(
+            policy=capability_policy,
+            requests={
+                KNOWLEDGE_CANDIDATE_CAPABILITY_ID: (
+                    candidate_request
+                ),
+                KNOWLEDGE_RELEVANCE_CAPABILITY_ID: (
+                    relevance_request
+                ),
+            },
+        )
         candidate_result = (
             capability_execution.result.output.get(
                 "knowledge_candidate_result",
                 {},
             )
-        )
-
-        relevance_execution = capability_runtime.invoke(
-            capability_id=(
-                KNOWLEDGE_RELEVANCE_CAPABILITY_ID
-            ),
-            request=CapabilityRequest(
-                request_id=(
-                    "REQ-TRANSFORMER-RELEVANCE-"
-                    f"{uuid4().hex}"
-                ),
-                payload={
-                    "domain": "transformer",
-                    "asset_type": "power_transformer",
-                    "available_evidence": tuple(
-                        available_evidence
-                    ),
-                    "missing_evidence": tuple(
-                        missing_required_evidence
-                    ),
-                    "investigation_stage": "initial",
-                    "max_results": 5,
-                },
-                context={
-                    "execution_mode": "shadow",
-                },
-            ),
         )
 
         relevance_result = (
@@ -237,7 +271,6 @@ class TransformerEngineer:
                 {},
             )
         )
-
         candidate_record = CapabilityExecutionRecord(
             capability_id=(
                 KNOWLEDGE_CANDIDATE_CAPABILITY_ID
