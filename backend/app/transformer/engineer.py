@@ -41,6 +41,14 @@ from app.capabilities.evidence_interpretation.capability import (
 from app.capabilities.evidence_interpretation.capability_manifest import (
     EVIDENCE_INTERPRETATION_CAPABILITY_MANIFEST,
 )
+
+from app.capabilities.traceable_context.capability import (
+    TRACEABLE_CONTEXT_CAPABILITY_ID,
+    TraceableContextCapability,
+)
+from app.capabilities.traceable_context.capability_manifest import (
+    TRACEABLE_CONTEXT_CAPABILITY_MANIFEST,
+)
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -192,6 +200,13 @@ class TransformerEngineer:
             capability=EvidenceInterpretationCapability(),
             manifest=(
                 EVIDENCE_INTERPRETATION_CAPABILITY_MANIFEST
+            ),
+        )
+
+        capability_registry.register(
+            capability=TraceableContextCapability(),
+            manifest=(
+                TRACEABLE_CONTEXT_CAPABILITY_MANIFEST
             ),
         )
 
@@ -401,6 +416,72 @@ class TransformerEngineer:
             )
         )
 
+        traceable_context_request = CapabilityRequest(
+            request_id=(
+                "REQ-TRANSFORMER-TRACEABLE-"
+                f"{uuid4().hex}"
+            ),
+            payload={
+                "domain": "transformer",
+                "asset_type": "power_transformer",
+                "investigation_stage": "initial",
+                "selected_knowledge_ids": tuple(
+                    relevance_result.get(
+                        "selected_ids",
+                        (),
+                    )
+                ),
+                "evidence_items": tuple(
+                    {
+                        "evidence": item.get(
+                            "evidence",
+                            "",
+                        ),
+                        "interpretation": item.get(
+                            "interpretation",
+                            "",
+                        ),
+                        "engineering_significance": item.get(
+                            "engineering_significance",
+                            "",
+                        ),
+                        "supporting_knowledge_ids": (),
+                    }
+                    for item in evidence_interpretation_result.get(
+                        "interpretations",
+                        (),
+                    )
+                ),
+                "unresolved_evidence": tuple(
+                    evidence_interpretation_result.get(
+                        "unresolved_evidence",
+                        (),
+                    )
+                ),
+            },
+            context={
+                "execution_mode": "shadow",
+            },
+        )
+
+        (
+            traceable_context_execution,
+        ) = capability_orchestrator.execute(
+            executions=(
+                (
+                    TRACEABLE_CONTEXT_CAPABILITY_ID,
+                    traceable_context_request,
+                ),
+            ),
+        )
+
+        traceable_context_result = (
+            traceable_context_execution.result.output.get(
+                "traceable_engineering_context",
+                {},
+            )
+        )
+
         evidence_interpretation_record = (
             CapabilityExecutionRecord(
                 capability_id=(
@@ -447,8 +528,74 @@ class TransformerEngineer:
             )
         )
 
+        traceable_context_record = (
+            CapabilityExecutionRecord(
+                capability_id=(
+                    TRACEABLE_CONTEXT_CAPABILITY_ID
+                ),
+                status=(
+                    traceable_context_execution.result.status
+                ),
+                execution_mode="shadow",
+                affects_decision=(
+                    traceable_context_execution.result.affects_decision
+                ),
+                duration_ms=(
+                    traceable_context_execution.duration_ms
+                ),
+                error=(
+                    traceable_context_execution.error.model_dump()
+                    if traceable_context_execution.error
+                    is not None
+                    else None
+                ),
+            )
+        )
+
+        traceable_context_audit = (
+            traceable_context_record.model_dump()
+        )
+
+        traceable_context_audit[
+            "knowledge_count"
+        ] = len(
+            traceable_context_result.get(
+                "knowledge_ids",
+                (),
+            )
+        )
+
+        traceable_context_audit[
+            "evidence_count"
+        ] = len(
+            traceable_context_result.get(
+                "evidence_items",
+                (),
+            )
+        )
+
+        traceable_context_audit[
+            "unresolved_count"
+        ] = len(
+            traceable_context_result.get(
+                "unresolved_evidence",
+                (),
+            )
+        )
+
+        traceable_context_audit[
+            "traceability_complete"
+        ] = traceable_context_result.get(
+            "traceability_complete",
+            False,
+        )
+
         capability_executions.append(
             evidence_interpretation_audit
+        )
+
+        capability_executions.append(
+            traceable_context_audit
         )
 
         session.metadata["capability_executions"] = (

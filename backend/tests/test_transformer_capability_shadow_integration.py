@@ -41,7 +41,7 @@ def test_transformer_session_exposes_capability_execution():
     )
     assert len(
         metadata["capability_executions"]
-    ) == 3
+    ) == 4
 
     capability_ids = [
         execution["capability_id"]
@@ -52,6 +52,7 @@ def test_transformer_session_exposes_capability_execution():
         "CAP-KNOWLEDGE-0001",
         "CAP-KNOWLEDGERELEVANCE-0001",
         "CAP-EVIDENCEINTERP-0001",
+        "CAP-TRACEABLECTX-0001",
     ]
 
 
