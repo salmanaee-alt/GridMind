@@ -220,3 +220,52 @@ def test_capability_failure_does_not_block_engineering_analysis(
     assert session["hypotheses"]
     assert session["decisions"]
     assert session["reports"]
+
+
+def test_traceable_context_exposes_coverage_audit_without_decision_leak():
+    session = invoke_transformer_api()
+
+    execution = session["metadata"][
+        "capability_executions"
+    ][3]
+
+    assert execution["capability_id"] == (
+        "CAP-TRACEABLECTX-0001"
+    )
+    assert execution["status"] == "success"
+    assert execution["execution_mode"] == "shadow"
+    assert execution["affects_decision"] is False
+
+    assert execution[
+        "interpreted_evidence_count"
+    ] >= 0
+
+    assert execution[
+        "traced_evidence_count"
+    ] >= 0
+
+    assert execution[
+        "untraced_evidence_count"
+    ] >= 0
+
+    assert 0.0 <= execution[
+        "traceability_ratio"
+    ] <= 1.0
+
+    assert (
+        execution["traced_evidence_count"]
+        + execution["untraced_evidence_count"]
+        == execution["interpreted_evidence_count"]
+    )
+
+    for decision in session["decisions"]:
+        assert "traceability_ratio" not in decision
+        assert "traced_evidence_count" not in decision
+        assert "untraced_evidence_count" not in decision
+        assert "traceable_engineering_context" not in decision
+
+    for report in session["reports"]:
+        assert "traceability_ratio" not in report
+        assert "traced_evidence_count" not in report
+        assert "untraced_evidence_count" not in report
+        assert "traceable_engineering_context" not in report

@@ -590,6 +590,34 @@ class TransformerEngineer:
             False,
         )
 
+        traceable_context_audit[
+            "interpreted_evidence_count"
+        ] = traceable_context_result.get(
+            "interpreted_evidence_count",
+            0,
+        )
+
+        traceable_context_audit[
+            "traced_evidence_count"
+        ] = traceable_context_result.get(
+            "traced_evidence_count",
+            0,
+        )
+
+        traceable_context_audit[
+            "untraced_evidence_count"
+        ] = traceable_context_result.get(
+            "untraced_evidence_count",
+            0,
+        )
+
+        traceable_context_audit[
+            "traceability_ratio"
+        ] = traceable_context_result.get(
+            "traceability_ratio",
+            0.0,
+        )
+
         capability_executions.append(
             evidence_interpretation_audit
         )

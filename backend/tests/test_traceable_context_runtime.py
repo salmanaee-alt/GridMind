@@ -118,4 +118,113 @@ def test_runtime_empty_context_is_not_complete() -> None:
     assert result.unresolved_evidence == ()
     assert result.traceability_complete is False
     assert result.affects_decision is False
-    
+
+
+def test_runtime_reports_zero_traceability() -> None:
+    result = execute_traceable_context(
+        request=TraceableEngineeringContextRequest(
+            domain="transformer",
+            asset_type="power_transformer",
+            investigation_stage="initial",
+            selected_knowledge_ids=(
+                "EKO-0001",
+            ),
+            evidence_items=(
+                TraceableEvidenceItem(
+                    evidence="DGA report",
+                    interpretation="DGA interpretation",
+                    engineering_significance="Significance",
+                ),
+                TraceableEvidenceItem(
+                    evidence="COMTRADE waveform",
+                    interpretation="COMTRADE interpretation",
+                    engineering_significance="Significance",
+                ),
+            ),
+        ),
+    )
+
+    assert result.interpreted_evidence_count == 2
+    assert result.traced_evidence_count == 0
+    assert result.untraced_evidence_count == 2
+    assert result.traceability_ratio == 0.0
+    assert result.untraced_evidence == (
+        "DGA report",
+        "COMTRADE waveform",
+    )
+    assert result.traceability_complete is False
+
+
+def test_runtime_reports_half_traceability() -> None:
+    result = execute_traceable_context(
+        request=TraceableEngineeringContextRequest(
+            domain="transformer",
+            asset_type="power_transformer",
+            investigation_stage="initial",
+            selected_knowledge_ids=(
+                "EKO-0001",
+            ),
+            evidence_items=(
+                TraceableEvidenceItem(
+                    evidence="DGA report",
+                    interpretation="DGA interpretation",
+                    engineering_significance="Significance",
+                    supporting_knowledge_ids=(
+                        "EKO-0001",
+                    ),
+                ),
+                TraceableEvidenceItem(
+                    evidence="COMTRADE waveform",
+                    interpretation="COMTRADE interpretation",
+                    engineering_significance="Significance",
+                ),
+            ),
+        ),
+    )
+
+    assert result.interpreted_evidence_count == 2
+    assert result.traced_evidence_count == 1
+    assert result.untraced_evidence_count == 1
+    assert result.traceability_ratio == 0.5
+    assert result.untraced_evidence == (
+        "COMTRADE waveform",
+    )
+    assert result.traceability_complete is False
+
+
+def test_runtime_reports_full_traceability() -> None:
+    result = execute_traceable_context(
+        request=TraceableEngineeringContextRequest(
+            domain="transformer",
+            asset_type="power_transformer",
+            investigation_stage="initial",
+            selected_knowledge_ids=(
+                "EKO-0001",
+            ),
+            evidence_items=(
+                TraceableEvidenceItem(
+                    evidence="DGA report",
+                    interpretation="DGA interpretation",
+                    engineering_significance="Significance",
+                    supporting_knowledge_ids=(
+                        "EKO-0001",
+                    ),
+                ),
+                TraceableEvidenceItem(
+                    evidence="COMTRADE waveform",
+                    interpretation="COMTRADE interpretation",
+                    engineering_significance="Significance",
+                    supporting_knowledge_ids=(
+                        "EKO-0001",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    assert result.interpreted_evidence_count == 2
+    assert result.traced_evidence_count == 2
+    assert result.untraced_evidence_count == 0
+    assert result.traceability_ratio == 1.0
+    assert result.untraced_evidence == ()
+    assert result.traceability_complete is True

@@ -107,6 +107,18 @@ class TraceableContextCapability(
                     traceable_result.traceability_complete
                 ),
                 "affects_decision": False,
+                                "interpreted_evidence_count": (
+                    traceable_result.interpreted_evidence_count
+                ),
+                "traced_evidence_count": (
+                    traceable_result.traced_evidence_count
+                ),
+                "untraced_evidence_count": (
+                    traceable_result.untraced_evidence_count
+                ),
+                "traceability_ratio": (
+                    traceable_result.traceability_ratio
+                ),
             },
             affects_decision=False,
         )
@@ -159,5 +171,29 @@ class TraceableContextCapability(
             ),
             "shadow_only": True,
             "affects_decision": False,
+                        "interpreted_evidence_count": (
+                context_result.get(
+                    "interpreted_evidence_count",
+                    0,
+                )
+            ),
+            "traced_evidence_count": (
+                context_result.get(
+                    "traced_evidence_count",
+                    0,
+                )
+            ),
+            "untraced_evidence_count": (
+                context_result.get(
+                    "untraced_evidence_count",
+                    0,
+                )
+            ),
+            "traceability_ratio": (
+                context_result.get(
+                    "traceability_ratio",
+                    0.0,
+                )
+            ),
         }
     

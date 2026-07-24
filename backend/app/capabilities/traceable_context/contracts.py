@@ -198,5 +198,31 @@ class TraceableEngineeringContextResult(BaseModel):
 
     traceability_complete: bool = False
 
+    interpreted_evidence_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    traced_evidence_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    untraced_evidence_count: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    traceability_ratio: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+    )
+
+    untraced_evidence: tuple[
+        NonBlankString,
+        ...
+    ] = ()
+
     affects_decision: bool = False
     

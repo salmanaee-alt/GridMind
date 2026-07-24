@@ -42,12 +42,43 @@ def execute_traceable_context(
         for item in request.evidence_items
     )
 
-    traceability_complete = (
-        bool(evidence_items)
-        and all(
-            item.supporting_knowledge_ids
-            for item in evidence_items
+    interpreted_evidence_count = len(
+        evidence_items
+    )
+
+    traced_evidence = tuple(
+        item
+        for item in evidence_items
+        if item.supporting_knowledge_ids
+    )
+
+    traced_evidence_count = len(
+        traced_evidence
+    )
+
+    untraced_evidence = tuple(
+        item.evidence
+        for item in evidence_items
+        if not item.supporting_knowledge_ids
+    )
+
+    untraced_evidence_count = len(
+        untraced_evidence
+    )
+
+    if interpreted_evidence_count == 0:
+        traceability_ratio = 0.0
+    else:
+        traceability_ratio = round(
+            traced_evidence_count
+            / interpreted_evidence_count,
+            4,
         )
+
+    traceability_complete = (
+        interpreted_evidence_count > 0
+        and traced_evidence_count
+        == interpreted_evidence_count
         and not request.unresolved_evidence
     )
 
@@ -61,6 +92,21 @@ def execute_traceable_context(
         ),
         traceability_complete=(
             traceability_complete
+        ),
+        interpreted_evidence_count=(
+            interpreted_evidence_count
+        ),
+        traced_evidence_count=(
+            traced_evidence_count
+        ),
+        untraced_evidence_count=(
+            untraced_evidence_count
+        ),
+        traceability_ratio=(
+            traceability_ratio
+        ),
+        untraced_evidence=(
+            untraced_evidence
         ),
         affects_decision=False,
     )
