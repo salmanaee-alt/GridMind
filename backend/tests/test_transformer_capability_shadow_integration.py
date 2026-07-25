@@ -269,3 +269,29 @@ def test_traceable_context_exposes_coverage_audit_without_decision_leak():
         assert "traced_evidence_count" not in report
         assert "untraced_evidence_count" not in report
         assert "traceable_engineering_context" not in report
+
+
+def test_provenance_gap_classification_does_not_leak_into_decisions_or_reports():
+    session = invoke_transformer_api()
+
+    execution = session["metadata"][
+        "capability_executions"
+    ][3]
+
+    assert execution["capability_id"] == (
+        "CAP-TRACEABLECTX-0001"
+    )
+    assert execution["execution_mode"] == "shadow"
+    assert execution["affects_decision"] is False
+
+    assert "provenance_gap" not in execution
+
+    for decision in session["decisions"]:
+        assert "provenance_gap" not in decision
+        assert "provenance_gap_type" not in decision
+
+    for report in session["reports"]:
+        assert "provenance_gap" not in report
+        assert "provenance_gap_type" not in report
+
+

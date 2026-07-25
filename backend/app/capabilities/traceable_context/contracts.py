@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Annotated
 
 from pydantic import (
@@ -15,6 +16,14 @@ NonBlankString = Annotated[
     str,
     Field(min_length=1),
 ]
+
+
+class ProvenanceGapType(str, Enum):
+    NONE = "none"
+    NO_SUPPORTING_KNOWLEDGE = "no_supporting_knowledge"
+    KNOWLEDGE_NOT_SELECTED = "knowledge_not_selected"
+    INTERPRETATION_ONLY = "interpretation_only"
+    UNKNOWN = "unknown"
 
 
 class TraceableEvidenceItem(BaseModel):
@@ -39,6 +48,8 @@ class TraceableEvidenceItem(BaseModel):
         NonBlankString,
         ...
     ] = ()
+
+    provenance_gap: ProvenanceGapType = ProvenanceGapType.NONE
 
 
 class TraceableEngineeringContextRequest(BaseModel):
@@ -225,4 +236,3 @@ class TraceableEngineeringContextResult(BaseModel):
     ] = ()
 
     affects_decision: bool = False
-    

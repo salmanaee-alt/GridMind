@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.capabilities.traceable_context.contracts import (
+    ProvenanceGapType,    
     TraceableEngineeringContextRequest,
     TraceableEngineeringContextResult,
     TraceableEvidenceItem,
@@ -36,8 +37,13 @@ def execute_traceable_context(
                 item.engineering_significance
             ),
             supporting_knowledge_ids=(
-                item.supporting_knowledge_ids
-            ),
+    		item.supporting_knowledge_ids
+	    ),
+	    provenance_gap=(
+    		ProvenanceGapType.NONE
+   		if item.supporting_knowledge_ids
+ 		else ProvenanceGapType.NO_SUPPORTING_KNOWLEDGE
+	    ),
         )
         for item in request.evidence_items
     )
