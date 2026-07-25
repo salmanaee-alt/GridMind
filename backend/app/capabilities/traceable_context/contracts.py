@@ -26,6 +26,28 @@ class ProvenanceGapType(str, Enum):
     UNKNOWN = "unknown"
 
 
+class EvidenceConflictType(str, Enum):
+    NONE = "none"
+
+    SUPPORTING_VS_CONTRADICTING = (
+        "supporting_vs_contradicting"
+    )
+
+    SENSOR_DISAGREEMENT = (
+        "sensor_disagreement"
+    )
+
+    TIME_INCONSISTENCY = (
+        "time_inconsistency"
+    )
+
+    MISSING_SUPPORT = (
+        "missing_support"
+    )
+
+    UNKNOWN = "unknown"
+
+
 class TraceableEvidenceItem(BaseModel):
     """
     One evidence interpretation with explicit traceability.
@@ -40,6 +62,10 @@ class TraceableEvidenceItem(BaseModel):
         extra="forbid",
     )
 
+    conflict_type: EvidenceConflictType = (
+        EvidenceConflictType.NONE
+    )
+    
     evidence: NonBlankString
     interpretation: NonBlankString
     engineering_significance: NonBlankString
@@ -49,8 +75,9 @@ class TraceableEvidenceItem(BaseModel):
         ...
     ] = ()
 
-    provenance_gap: ProvenanceGapType = ProvenanceGapType.NONE
-
+    provenance_gap: ProvenanceGapType = (
+        ProvenanceGapType.NONE
+    )
 
 class TraceableEngineeringContextRequest(BaseModel):
     """

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.capabilities.traceable_context.contracts import (
+    EvidenceConflictType,
     ProvenanceGapType,    
     TraceableEngineeringContextRequest,
     TraceableEngineeringContextResult,
@@ -44,6 +45,11 @@ def execute_traceable_context(
    		if item.supporting_knowledge_ids
  		else ProvenanceGapType.NO_SUPPORTING_KNOWLEDGE
 	    ),
+            conflict_type=(
+                EvidenceConflictType.NONE
+                if item.supporting_knowledge_ids
+                else EvidenceConflictType.MISSING_SUPPORT
+            ),
         )
         for item in request.evidence_items
     )
@@ -116,3 +122,5 @@ def execute_traceable_context(
         ),
         affects_decision=False,
     )
+
+
