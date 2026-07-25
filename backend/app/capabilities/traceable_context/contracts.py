@@ -48,6 +48,22 @@ class EvidenceConflictType(str, Enum):
     UNKNOWN = "unknown"
 
 
+class EvidenceConflictStatus(str, Enum):
+    """
+    Descriptive lifecycle state for an evidence conflict.
+
+    This status is shadow-only metadata.
+    It does not resolve conflicts or affect
+    engineering decisions.
+    """
+
+    NONE = "none"
+    UNRESOLVED = "unresolved"
+    VERIFICATION_REQUIRED = "verification_required"
+    RESOLVED = "resolved"
+    UNKNOWN = "unknown"
+
+
 class TraceableEvidenceItem(BaseModel):
     """
     One evidence interpretation with explicit traceability.
@@ -64,6 +80,10 @@ class TraceableEvidenceItem(BaseModel):
 
     conflict_type: EvidenceConflictType = (
         EvidenceConflictType.NONE
+    )
+
+    conflict_status: EvidenceConflictStatus = (
+        EvidenceConflictStatus.NONE
     )
     
     evidence: NonBlankString
