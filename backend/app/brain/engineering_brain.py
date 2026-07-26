@@ -10,6 +10,9 @@ from app.brain.explanation_provenance import (
 )
 from app.transformer.evidence_quality import score_evidence_quality
 
+from app.brain.reasoning_trace_audit import (
+    build_reasoning_trace_audit,
+)
 
 @dataclass
 class StageResult:
@@ -297,9 +300,16 @@ class EngineeringBrain:
             },
         })
 
+        session.metadata["reasoning_trace_audit"] = (
+            build_reasoning_trace_audit(
+                session.reasoning_steps
+            )
+        )
+
         session.set_status(InvestigationStatus.COMPLETED)
 
         return session
+    
 
     def _extract_evidence_metadata(self, session: EngineeringSession) -> list[dict]:
         metadata: list[dict] = []

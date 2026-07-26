@@ -1880,3 +1880,40 @@ def test_transformer_api_exposes_confidence_calibration_audit():
         assert audit["affects_confidence"] is False
         assert audit["affects_ranking"] is False
         assert audit["affects_decision"] is False
+
+
+def test_transformer_api_exposes_reasoning_trace_audit():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": (
+            "Transformer tripped by differential relay"
+        ),
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+        ],
+        "missing_data": [],
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    session = response.json()["session"]
+    audit = session["metadata"]["reasoning_trace_audit"]
+
+    assert audit["status"] == "complete"
+    assert audit["trace_complete"] is True
+    assert audit["order_valid"] is True
+
+    assert audit["missing_stages"] == []
+    assert audit["duplicate_stages"] == []
+    assert audit["unknown_stages"] == []
+
+    assert audit["affects_confidence"] is False
+    assert audit["affects_ranking"] is False
+    assert audit["affects_decision"] is False
