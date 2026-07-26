@@ -91,6 +91,9 @@ class EngineeringBrain:
             ranked_hypotheses=ranked_hypotheses,
             original_hypotheses=session.hypotheses,
         )
+        self._attach_confidence_calibration_status(
+            ranked_hypotheses
+        )
 
         top_ranked_hypothesis = ranked_hypotheses[0] if ranked_hypotheses else None
 
@@ -561,3 +564,29 @@ class EngineeringBrain:
                 merged.append(item)
 
         return merged
+    
+    def _attach_confidence_calibration_status(
+        self,
+        hypotheses: list[dict],
+    ) -> None:
+        for hypothesis in hypotheses:
+            confidence = hypothesis.get(
+                "confidence",
+                "unknown",
+            )
+
+            confidence_rank = self.CONFIDENCE_RANK.get(
+                confidence,
+                0,
+            )
+
+            hypothesis["confidence_calibration"] = {
+                "confidence": confidence,
+                "confidence_type": "qualitative",
+                "confidence_rank": confidence_rank,
+                "is_calibrated_probability": False,
+                "calibrated_probability": None,
+                "affects_confidence": False,
+                "affects_ranking": False,
+                "affects_decision": False,
+            }

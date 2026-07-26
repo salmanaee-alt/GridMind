@@ -1841,3 +1841,42 @@ def test_transformer_api_rejects_oversized_evidence_item_text():
     )
 
     assert response.status_code == 422
+
+
+def test_transformer_api_exposes_confidence_calibration_audit():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": (
+            "Transformer tripped by differential relay"
+        ),
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+        ],
+        "missing_data": [],
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    hypotheses = data["session"]["hypotheses"]
+
+    assert hypotheses
+
+    for hypothesis in hypotheses:
+        audit = hypothesis["confidence_calibration"]
+
+        assert audit["confidence"] == hypothesis["confidence"]
+        assert audit["confidence_type"] == "qualitative"
+        assert audit["is_calibrated_probability"] is False
+        assert audit["calibrated_probability"] is None
+        assert audit["affects_confidence"] is False
+        assert audit["affects_ranking"] is False
+        assert audit["affects_decision"] is False
