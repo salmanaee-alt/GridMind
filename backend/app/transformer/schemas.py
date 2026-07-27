@@ -4,6 +4,11 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from app.transformer.physics_contracts import (
+    HarmonicCurrentMeasurement,
+    TransformerDifferentialPhysicsContext,
+    TransformerElectricalMeasurements,
+)
 
 DGAStatus = Literal[
     "not_available",
@@ -196,6 +201,30 @@ class TransformerDifferentialTripRequest(BaseModel):
     )
     dga_status: DGAStatus = Field(default="not_available")
     comtrade_summary: COMTRADESummary = Field(default="not_available")
+
+    physics_measurements: TransformerElectricalMeasurements | None = Field(
+        default=None,
+        description=(
+            "Optional raw electrical measurements for shadow-only "
+            "transformer physics calculations."
+        ),
+    )
+
+    physics_context: TransformerDifferentialPhysicsContext | None = Field(
+        default=None,
+        description=(
+            "Optional transformer differential physics context. "
+            "Shadow-only and does not affect engineering decisions."
+        ),
+    )
+
+    harmonic_measurement: HarmonicCurrentMeasurement | None = Field(
+        default=None,
+        description=(
+            "Optional harmonic current measurement for shadow-only "
+            "harmonic physics evaluation."
+        ),
+    )
 
     evidence_metadata: list[EvidenceMetadata] = Field(
         default_factory=list,

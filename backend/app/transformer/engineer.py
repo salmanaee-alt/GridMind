@@ -49,6 +49,28 @@ from app.capabilities.traceable_context.capability import (
 from app.capabilities.traceable_context.capability_manifest import (
     TRACEABLE_CONTEXT_CAPABILITY_MANIFEST,
 )
+
+from app.transformer.physics_observation_builder import (
+    build_differential_current_observation,
+    build_harmonic_restraint_observation,
+)
+
+from app.transformer.physics import (
+    calculate_differential_and_restraint_currents,
+    evaluate_harmonic_physics_validity,
+    evaluate_harmonic_restraint,
+    normalize_current_to_ct_secondary,
+    refer_current_to_voltage_side,
+)
+
+from app.transformer.physics_contracts import (
+    HarmonicRestraintSettings,
+)
+
+from app.transformer.physics_observation_builder import (
+    build_differential_current_observation,
+    build_harmonic_restraint_observation,
+)
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -643,13 +665,90 @@ class TransformerEngineer:
             "dga_status": request.dga_status,
             "comtrade_summary": request.comtrade_summary,
             "hv_breaker_status": request.hv_breaker_status,
-            "lv_breaker_status": request.lv_breaker_status,            "evidence_metadata": evidence_metadata,
+            "lv_breaker_status": request.lv_breaker_status,
+            "evidence_metadata": evidence_metadata,
             "notes": notes,
             "initial_safety_position": knowledge["initial_safety_position"],
             "available_evidence": available_evidence,
             "missing_required_evidence": missing_required_evidence,
             "source": "Transformer Knowledge v0.1",
         })
+
+        if (
+            request.physics_measurements is not None
+            and request.physics_context is not None
+        ):
+            measurements = request.physics_measurements
+            physics_context = request.physics_context
+
+            if (
+                measurements.hv_currents is not None
+                and measurements.lv_currents is not None
+                and measurements.hv_ct_ratio is not None
+                and measurements.lv_ct_ratio is not None
+                and measurements.hv_nominal_voltage_kv is not None
+                and measurements.lv_nominal_voltage_kv is not None
+                and physics_context.vector_group_compensation_applied
+            ):
+                hv_secondary = normalize_current_to_ct_secondary(
+                    currents=measurements.hv_currents,
+                    ct_ratio=measurements.hv_ct_ratio,
+                )
+
+                lv_secondary = normalize_current_to_ct_secondary(
+                    currents=measurements.lv_currents,
+                    ct_ratio=measurements.lv_ct_ratio,
+                )
+
+                lv_referred_to_hv = refer_current_to_voltage_side(
+                    currents=lv_secondary,
+                    from_voltage_kv=measurements.lv_nominal_voltage_kv,
+                    to_voltage_kv=measurements.hv_nominal_voltage_kv,
+                )
+
+                differential_result = (
+                    calculate_differential_and_restraint_currents(
+                        hv_currents=hv_secondary,
+                        lv_currents_referred_to_hv=lv_referred_to_hv,
+                        context=physics_context,
+                    )
+                )
+
+                differential_observation = (
+                    build_differential_current_observation(
+                        result=differential_result
+                    )
+                )
+
+                session.add_observation(
+                    differential_observation.model_dump()
+                )
+
+        if request.harmonic_measurement is not None:
+            harmonic_validity = (
+                evaluate_harmonic_physics_validity(
+                    measurement=request.harmonic_measurement
+                )
+            )
+
+            harmonic_result = evaluate_harmonic_restraint(
+                measurement=request.harmonic_measurement,
+                settings=HarmonicRestraintSettings(
+                    second_harmonic_threshold_percent=15.0,
+                    fifth_harmonic_threshold_percent=20.0,
+                ),
+            )
+
+            harmonic_observation = (
+                build_harmonic_restraint_observation(
+                    result=harmonic_result,
+                    validity=harmonic_validity,
+                )
+            )
+
+            session.add_observation(
+                harmonic_observation.model_dump()
+            )
 
         for evaluation in hypothesis_evaluations:
             session.add_hypothesis({
@@ -658,7 +757,7 @@ class TransformerEngineer:
                 "supporting_evidence": evaluation["supporting_evidence"],
                 "missing_evidence": evaluation["missing_evidence"],
                 "conflicts": evaluation.get("conflicts", []),
-                               "conflicting_evidence": evaluation.get(
+                    "conflicting_evidence": evaluation.get(
                     "conflicting_evidence",
                     [],
                 ),
@@ -668,7 +767,7 @@ class TransformerEngineer:
                 "why_not_confirmed": evaluation.get("why_not_confirmed", []),
                 "confidence_drivers": evaluation.get("confidence_drivers", []),
                 "confidence_limiters": evaluation.get("confidence_limiters", []),
-                                "confidence_limiter_details": evaluation.get(
+                    "confidence_limiter_details": evaluation.get(
                     "confidence_limiter_details",
                     [],
                 ),
