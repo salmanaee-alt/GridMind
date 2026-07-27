@@ -7,6 +7,10 @@ from app.transformer.physics_contracts import (
     TransformerDifferentialPhysicsContext,
     DifferentialCharacteristicEvaluation,
     DifferentialCharacteristicSettings,
+    HarmonicCurrentMeasurement,
+    HarmonicRestraintEvaluation,
+    HarmonicRestraintSettings,
+    HarmonicPhysicsValidity,
 )
 
 from app.transformer.physics_contracts import (
@@ -198,5 +202,139 @@ def evaluate_differential_characteristic(
         phase_a_threshold_a=phase_a_threshold,
         phase_b_threshold_a=phase_b_threshold,
         phase_c_threshold_a=phase_c_threshold,
+        affects_decision=False,
+    )
+
+
+def calculate_harmonic_ratios(
+    *,
+    measurement: HarmonicCurrentMeasurement,
+) -> dict[str, float | None | bool]:
+    """
+    Calculate harmonic current ratios relative to
+    the fundamental component.
+
+    H2% = I2 / I1 * 100
+    H5% = I5 / I1 * 100
+
+    If the fundamental current is zero, ratios are
+    undefined and returned as None.
+
+    Shadow-only physics calculation.
+    """
+
+    if measurement.fundamental_a == 0.0:
+        return {
+            "second_harmonic_percent": None,
+            "fifth_harmonic_percent": None,
+            "ratios_defined": False,
+            "affects_decision": False,
+        }
+
+    return {
+        "second_harmonic_percent": round(
+            measurement.second_harmonic_a
+            / measurement.fundamental_a
+            * 100.0,
+            4,
+        ),
+        "fifth_harmonic_percent": round(
+            measurement.fifth_harmonic_a
+            / measurement.fundamental_a
+            * 100.0,
+            4,
+        ),
+        "ratios_defined": True,
+        "affects_decision": False,
+    }
+
+
+def evaluate_harmonic_restraint(
+    *,
+    measurement: HarmonicCurrentMeasurement,
+    settings: HarmonicRestraintSettings,
+) -> HarmonicRestraintEvaluation:
+    """
+    Evaluate harmonic restraint indicators from
+    harmonic-current ratios.
+
+    Shadow-only physics evaluation.
+    No relay or engineering decision is produced.
+    """
+
+    ratios = calculate_harmonic_ratios(
+        measurement=measurement
+    )
+
+    if not ratios["ratios_defined"]:
+        return HarmonicRestraintEvaluation(
+            second_harmonic_restraint=False,
+            fifth_harmonic_restraint=False,
+            any_harmonic_restraint=False,
+            ratios_defined=False,
+            affects_decision=False,
+        )
+
+    second_harmonic_restraint = (
+        ratios["second_harmonic_percent"]
+        >= settings.second_harmonic_threshold_percent
+    )
+
+    fifth_harmonic_restraint = (
+        ratios["fifth_harmonic_percent"]
+        >= settings.fifth_harmonic_threshold_percent
+    )
+
+    return HarmonicRestraintEvaluation(
+        second_harmonic_restraint=(
+            second_harmonic_restraint
+        ),
+        fifth_harmonic_restraint=(
+            fifth_harmonic_restraint
+        ),
+        any_harmonic_restraint=(
+            second_harmonic_restraint
+            or fifth_harmonic_restraint
+        ),
+        ratios_defined=True,
+        affects_decision=False,
+    )
+
+
+def evaluate_harmonic_physics_validity(
+    *,
+    measurement: HarmonicCurrentMeasurement | None,
+) -> HarmonicPhysicsValidity:
+    """
+    Evaluate whether harmonic-ratio physics is usable.
+
+    Shadow-only validity assessment.
+    No inrush, overexcitation, relay, or engineering
+    conclusion is produced.
+    """
+
+    if measurement is None:
+        return HarmonicPhysicsValidity(
+            status="unavailable",
+            reason="No harmonic current measurement is available.",
+            affects_decision=False,
+        )
+
+    if measurement.fundamental_a == 0.0:
+        return HarmonicPhysicsValidity(
+            status="indeterminate",
+            reason=(
+                "Fundamental current is zero, so harmonic "
+                "ratios cannot be physically defined."
+            ),
+            affects_decision=False,
+        )
+
+    return HarmonicPhysicsValidity(
+        status="valid",
+        reason=(
+            "Fundamental current is available and harmonic "
+            "ratios can be evaluated."
+        ),
         affects_decision=False,
     )

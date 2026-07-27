@@ -7,6 +7,9 @@ from app.transformer.physics import (
     evaluate_differential_characteristic,
     normalize_current_to_ct_secondary,
     refer_current_to_voltage_side,
+    calculate_harmonic_ratios,
+    evaluate_harmonic_restraint,
+    evaluate_harmonic_physics_validity
 )
 
 from app.transformer.physics_contracts import (
@@ -14,6 +17,8 @@ from app.transformer.physics_contracts import (
     DifferentialCharacteristicSettings,
     ThreePhaseCurrentMeasurement,
     TransformerDifferentialPhysicsContext,
+    HarmonicCurrentMeasurement,
+    HarmonicRestraintSettings,
 )
 
 
@@ -289,4 +294,161 @@ def test_differential_characteristic_restrains_below_threshold():
     assert result.phase_a_operate is False
     assert result.phase_b_operate is False
     assert result.phase_c_operate is False
+    
+
+def test_harmonic_ratios_are_calculated():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+        second_harmonic_a=20.0,
+        fifth_harmonic_a=5.0,
+    )
+
+    result = calculate_harmonic_ratios(
+        measurement=measurement
+    )
+
+    assert result["second_harmonic_percent"] == 20.0
+    assert result["fifth_harmonic_percent"] == 5.0
+    assert result["ratios_defined"] is True
+    assert result["affects_decision"] is False
+
+
+def test_harmonic_ratios_are_undefined_when_fundamental_is_zero():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=0.0,
+        second_harmonic_a=10.0,
+        fifth_harmonic_a=5.0,
+    )
+
+    result = calculate_harmonic_ratios(
+        measurement=measurement
+    )
+
+    assert result["second_harmonic_percent"] is None
+    assert result["fifth_harmonic_percent"] is None
+    assert result["ratios_defined"] is False
+    assert result["affects_decision"] is False
+
+
+def test_second_harmonic_restraint_is_detected():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+        second_harmonic_a=25.0,
+        fifth_harmonic_a=2.0,
+    )
+
+    settings = HarmonicRestraintSettings(
+        second_harmonic_threshold_percent=15.0,
+        fifth_harmonic_threshold_percent=20.0,
+    )
+
+    result = evaluate_harmonic_restraint(
+        measurement=measurement,
+        settings=settings,
+    )
+
+    assert result.second_harmonic_restraint is True
+    assert result.fifth_harmonic_restraint is False
+    assert result.any_harmonic_restraint is True
+    assert result.affects_decision is False
+
+
+def test_fifth_harmonic_restraint_is_detected():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+        second_harmonic_a=5.0,
+        fifth_harmonic_a=25.0,
+    )
+
+    settings = HarmonicRestraintSettings(
+        second_harmonic_threshold_percent=15.0,
+        fifth_harmonic_threshold_percent=20.0,
+    )
+
+    result = evaluate_harmonic_restraint(
+        measurement=measurement,
+        settings=settings,
+    )
+
+    assert result.second_harmonic_restraint is False
+    assert result.fifth_harmonic_restraint is True
+    assert result.any_harmonic_restraint is True
+
+
+def test_harmonic_restraint_is_false_when_below_thresholds():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+        second_harmonic_a=5.0,
+        fifth_harmonic_a=5.0,
+    )
+
+    settings = HarmonicRestraintSettings(
+        second_harmonic_threshold_percent=15.0,
+        fifth_harmonic_threshold_percent=20.0,
+    )
+
+    result = evaluate_harmonic_restraint(
+        measurement=measurement,
+        settings=settings,
+    )
+
+    assert result.any_harmonic_restraint is False
+
+
+def test_harmonic_restraint_is_not_evaluated_when_ratios_undefined():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=0.0,
+        second_harmonic_a=20.0,
+        fifth_harmonic_a=20.0,
+    )
+
+    settings = HarmonicRestraintSettings(
+        second_harmonic_threshold_percent=15.0,
+        fifth_harmonic_threshold_percent=20.0,
+    )
+
+    result = evaluate_harmonic_restraint(
+        measurement=measurement,
+        settings=settings,
+    )
+
+    assert result.ratios_defined is False
+    assert result.any_harmonic_restraint is False
+
+
+def test_harmonic_physics_validity_is_valid_with_fundamental():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+        second_harmonic_a=20.0,
+    )
+
+    result = evaluate_harmonic_physics_validity(
+        measurement=measurement
+    )
+
+    assert result.status == "valid"
+    assert result.affects_decision is False
+
+
+def test_harmonic_physics_validity_is_unavailable_without_measurement():
+    result = evaluate_harmonic_physics_validity(
+        measurement=None
+    )
+
+    assert result.status == "unavailable"
+    assert result.affects_decision is False
+
+
+def test_harmonic_physics_validity_is_indeterminate_with_zero_fundamental():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=0.0,
+        second_harmonic_a=20.0,
+    )
+
+    result = evaluate_harmonic_physics_validity(
+        measurement=measurement
+    )
+
+    assert result.status == "indeterminate"
+    assert result.affects_decision is False
     

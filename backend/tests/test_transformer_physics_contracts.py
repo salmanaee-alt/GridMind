@@ -6,6 +6,7 @@ from app.transformer.physics_contracts import (
     ThreePhaseCurrentMeasurement,
     TransformerElectricalMeasurements,
     TransformerDifferentialPhysicsContext,
+    HarmonicCurrentMeasurement,
 )
 
 
@@ -137,3 +138,34 @@ def test_unknown_vector_group_cannot_claim_compensation():
             vector_group="unknown",
             vector_group_compensation_applied=True,
         )
+
+
+def test_harmonic_current_measurement_accepts_valid_values():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+        second_harmonic_a=20.0,
+        fifth_harmonic_a=5.0,
+    )
+
+    assert measurement.fundamental_a == 100.0
+    assert measurement.second_harmonic_a == 20.0
+    assert measurement.fifth_harmonic_a == 5.0
+    assert measurement.affects_decision is False
+
+
+def test_harmonic_current_measurement_defaults_harmonics_to_zero():
+    measurement = HarmonicCurrentMeasurement(
+        fundamental_a=100.0,
+    )
+
+    assert measurement.second_harmonic_a == 0.0
+    assert measurement.fifth_harmonic_a == 0.0
+
+
+def test_harmonic_current_measurement_rejects_negative_values():
+    with pytest.raises(ValidationError):
+        HarmonicCurrentMeasurement(
+            fundamental_a=100.0,
+            second_harmonic_a=-1.0,
+        )
+                
