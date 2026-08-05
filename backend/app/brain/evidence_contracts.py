@@ -25,6 +25,34 @@ class EvidenceValidity(str, Enum):
     UNKNOWN = "unknown"
     INSUFFICIENT = "insufficient"
 
+class EvidenceRelationshipType(str, Enum):
+    DERIVED_FROM = "derived_from"
+    SUPPORTS = "supports"
+    CONTRADICTS = "contradicts"
+    VALIDATES = "validates"
+    INVALIDATES = "invalidates"
+    DEPENDS_ON = "depends_on"
+
+
+class EvidenceRelationship(BaseModel):
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+    )
+
+    target_evidence_id: str = Field(
+        min_length=1
+    )
+
+    relation: EvidenceRelationshipType
+
+    source: str = Field(
+        min_length=1
+    )
+
+    metadata: dict[str, Any] = Field(
+        default_factory=dict
+    )
 
 class EngineeringEvidence(BaseModel):
     """
@@ -69,5 +97,9 @@ class EngineeringEvidence(BaseModel):
         default_factory=dict
     )
 
+    relationships: tuple[
+        EvidenceRelationship,
+        ...
+    ] = ()
+
     affects_reasoning: bool = False
-    

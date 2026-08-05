@@ -84,6 +84,9 @@ from app.brain.evidence_graph_builder import (
 )
 from app.brain.evidence_graph_validation import (
     validate_evidence_graph,
+)
+from app.brain.evidence_relationship_validation import (
+    validate_evidence_relationships,
 ) 
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
@@ -831,12 +834,24 @@ class TransformerEngineer:
             )
         )
 
+        evidence_relationships_validation = (
+            validate_evidence_relationships(
+                engineering_evidence_objects
+            )
+        )
+
         session.set_evidence_graph(
             evidence_graph.model_dump()
         )
 
         session.metadata["evidence_graph_validation"] = (
             evidence_graph_validation.model_dump()
+        )
+
+        session.metadata[
+            "evidence_relationship_validation"
+        ] = (
+            evidence_relationships_validation.model_dump()
         )
         
         brain = EngineeringBrain()
