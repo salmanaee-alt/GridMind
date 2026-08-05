@@ -31,6 +31,44 @@ def build_differential_current_observation(
                 result.phase_c_restraint_a
             ),
         },
+        provenance={
+            "calculation": "differential_current",
+            "algorithm_version": "v0.39",
+            "formulae": {
+                "phase_a_diff_a": (
+                    "abs(hv_referred.phase_a - "
+                    "lv_referred.phase_a)"
+                ),
+                "phase_b_diff_a": (
+                    "abs(hv_referred.phase_b - "
+                    "lv_referred.phase_b)"
+                ),
+                "phase_c_diff_a": (
+                    "abs(hv_referred.phase_c - "
+                    "lv_referred.phase_c)"
+                ),
+                "phase_a_restraint_a": (
+                    "(hv_referred.phase_a + "
+                    "lv_referred.phase_a) / 2"
+                ),
+                "phase_b_restraint_a": (
+                    "(hv_referred.phase_b + "
+                    "lv_referred.phase_b) / 2"
+                ),
+                "phase_c_restraint_a": (
+                    "(hv_referred.phase_c + "
+                    "lv_referred.phase_c) / 2"
+                ),
+            },
+            "inputs": [
+                "hv_currents",
+                "lv_currents",
+                "hv_ct_ratio",
+                "lv_ct_ratio",
+                "voltage_side_referencing",
+                "vector_group_compensation",
+            ],
+        }
     )
 
 
@@ -55,4 +93,23 @@ def build_harmonic_restraint_observation(
             "ratios_defined": result.ratios_defined,
             "validity_reason": validity.reason,
         },
+        provenance={
+            "calculation": "harmonic_restraint",
+            "algorithm_version": "v0.39",
+            "formulae": {
+                "second_harmonic_restraint": (
+                    "second_harmonic_ratio >= "
+                    "second_harmonic_threshold"
+                ),
+                "fifth_harmonic_restraint": (
+                    "fifth_harmonic_ratio >= "
+                    "fifth_harmonic_threshold"
+                ),
+            },
+            "inputs": [
+                "fundamental_current",
+                "second_harmonic",
+                "fifth_harmonic",
+            ],
+        }
     )

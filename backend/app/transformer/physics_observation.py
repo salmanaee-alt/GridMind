@@ -26,9 +26,12 @@ class PhysicsObservation(BaseModel):
         default_factory=dict
     )
 
+    provenance: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
     validity_status: str = "unknown"
 
     affects_confidence: bool = False
     affects_ranking: bool = False
     affects_decision: bool = False
-    
