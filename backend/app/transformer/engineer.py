@@ -71,6 +71,20 @@ from app.transformer.physics_observation_builder import (
     build_differential_current_observation,
     build_harmonic_restraint_observation,
 )
+
+from app.brain.evidence_adapter import (
+    physics_observation_to_evidence,
+)
+
+from app.brain.evidence_contracts import (
+    EngineeringEvidence,
+)
+from app.brain.evidence_graph_builder import (
+    build_evidence_graph,
+)
+from app.brain.evidence_graph_validation import (
+    validate_evidence_graph,
+) 
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -724,6 +738,16 @@ class TransformerEngineer:
                     differential_observation.model_dump()
                 )
 
+                differential_evidence = (
+                    physics_observation_to_evidence(
+                        differential_observation
+                    )
+                )
+
+                session.add_evidence(
+                    differential_evidence.model_dump()
+                )
+
         if request.harmonic_measurement is not None:
             harmonic_validity = (
                 evaluate_harmonic_physics_validity(
@@ -748,6 +772,16 @@ class TransformerEngineer:
 
             session.add_observation(
                 harmonic_observation.model_dump()
+            )
+
+            harmonic_evidence = (
+                physics_observation_to_evidence(
+                    harmonic_observation
+                )
+            )
+
+            session.add_evidence(
+                harmonic_evidence.model_dump()
             )
 
         for evaluation in hypothesis_evaluations:
@@ -782,6 +816,29 @@ class TransformerEngineer:
                 "source": "Transformer Reasoning v0.10",
             })
 
+        engineering_evidence_objects = [
+            EngineeringEvidence.model_validate(item)
+            for item in session.evidence
+        ]
+
+        evidence_graph = build_evidence_graph(
+            engineering_evidence_objects
+        )
+
+        evidence_graph_validation = (
+            validate_evidence_graph(
+                evidence_graph
+            )
+        )
+
+        session.set_evidence_graph(
+            evidence_graph.model_dump()
+        )
+
+        session.metadata["evidence_graph_validation"] = (
+            evidence_graph_validation.model_dump()
+        )
+        
         brain = EngineeringBrain()
         completed_session = brain.run(session)
 

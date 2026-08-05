@@ -1,5 +1,12 @@
 ﻿from __future__ import annotations
 
+from app.brain.evidence_graph_builder import (
+    build_evidence_graph,
+)
+from app.brain.evidence_graph_validation import (
+    validate_evidence_graph,
+)
+
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -31,6 +38,7 @@ class EngineeringSession:
 
     observations: list[Any] = field(default_factory=list)
     evidence: list[Any] = field(default_factory=list)
+    evidence_graph: dict[str, Any] | None = None
     hypotheses: list[Any] = field(default_factory=list)
     reasoning_steps: list[Any] = field(default_factory=list)
     decisions: list[Any] = field(default_factory=list)
@@ -46,6 +54,12 @@ class EngineeringSession:
 
     def add_evidence(self, item: Any) -> None:
         self.evidence.append(item)
+
+    def set_evidence_graph(
+        self,
+        graph: dict[str, Any],
+    ) -> None:
+        self.evidence_graph = graph
 
     def add_hypothesis(self, hypothesis: Any) -> None:
         self.hypotheses.append(hypothesis)
@@ -80,6 +94,7 @@ class EngineeringSession:
             "status": self.status,
             "observations": self.observations,
             "evidence": self.evidence,
+            "evidence_graph": self.evidence_graph,
             "hypotheses": self.hypotheses,
             "reasoning_steps": self.reasoning_steps,
             "decisions": self.decisions,
