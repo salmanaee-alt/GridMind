@@ -14,6 +14,10 @@ def test_evidence_relationship_is_explicit():
         target_evidence_id="measurement:hv_current",
         relation=EvidenceRelationshipType.DERIVED_FROM,
         source="transformer_physics_adapter",
+        rationale=(
+            "The differential current is derived from the "
+            "high-voltage current measurement."
+        ),
     )
 
     assert (
@@ -39,6 +43,10 @@ def test_engineering_evidence_accepts_relationships():
                     EvidenceRelationshipType.DERIVED_FROM
                 ),
                 source="transformer_physics_adapter",
+                rationale=(
+                    "The differential current is derived from the "
+                    "high-voltage current measurement."
+                ),
             ),
         ),
     )
@@ -68,6 +76,10 @@ def test_relationship_rejects_blank_target():
             target_evidence_id="",
             relation=EvidenceRelationshipType.SUPPORTS,
             source="test",
+            rationale=(
+                "Differential current is explicitly derived "
+                "from the referenced measurement evidence."
+            ),
         )
 
 
@@ -77,4 +89,8 @@ def test_relationship_rejects_unknown_relation():
             target_evidence_id="evidence:target",
             relation="unknown_relation",
             source="test",
+            rationale=(
+                "Differential current is explicitly derived "
+                "from the referenced measurement evidence."
+            ),
         )

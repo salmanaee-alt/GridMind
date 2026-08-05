@@ -50,9 +50,31 @@ class EvidenceRelationship(BaseModel):
         min_length=1
     )
 
+    rationale: str = Field(
+        min_length=1
+    )
+
+    rule_id: str | None = Field(
+        default=None,
+        min_length=1,
+    )
+
+    rule_version: str | None = Field(
+        default=None,
+        min_length=1,
+    )
+
+    derivation_type: str = Field(
+        default="explicit",
+        min_length=1,
+    )
+
     metadata: dict[str, Any] = Field(
         default_factory=dict
     )
+
+    affects_reasoning: bool = False
+    affects_decision: bool = False
 
 class EngineeringEvidence(BaseModel):
     """

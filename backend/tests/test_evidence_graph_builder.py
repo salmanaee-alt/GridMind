@@ -1,18 +1,12 @@
 from app.brain.evidence_contracts import (
     EngineeringEvidence,
     EvidenceCategory,
+    EvidenceRelationship,
+    EvidenceRelationshipType,
     EvidenceValidity,
 )
 from app.brain.evidence_graph_builder import (
     build_evidence_graph,
-)
-
-from app.brain.evidence_contracts import (
-    EngineeringEvidence,
-    EvidenceCategory,
-    EvidenceRelationship,
-    EvidenceRelationshipType,
-    EvidenceValidity,
 )
 
 from app.brain.evidence_graph_contracts import (
@@ -108,6 +102,10 @@ def test_builds_edge_from_explicit_relationship():
                     EvidenceRelationshipType.DERIVED_FROM
                 ),
                 source="transformer_physics_adapter",
+                rationale=(
+                    "The differential current is derived from the "
+                    "high-voltage current measurement."
+                ),
             ),
         ),
     )
@@ -152,6 +150,10 @@ def test_does_not_create_edge_for_missing_target():
                     EvidenceRelationshipType.DERIVED_FROM
                 ),
                 source="transformer_physics_adapter",
+                rationale=(
+                    "The differential current is derived from the "
+                    "high-voltage current measurement."
+                )
             ),
         ),
     )
@@ -196,4 +198,3 @@ def test_provenance_inputs_do_not_create_relationships():
 
     assert len(graph.nodes) == 3
     assert graph.edges == []
-    

@@ -32,6 +32,10 @@ def test_relationship_validation_accepts_valid_relationships():
                     EvidenceRelationshipType.DERIVED_FROM
                 ),
                 source="test",
+                rationale=(
+                    "The differential current is derived from the "
+                    "high-voltage current measurement."
+                ),
             ),
         ),
     )
@@ -60,6 +64,10 @@ def test_detects_missing_target():
                     EvidenceRelationshipType.SUPPORTS
                 ),
                 source="test",
+                rationale=(
+                    "Differential current is explicitly derived "
+                    "from the referenced measurement evidence."
+                ),
             ),
         ),
     )
@@ -80,6 +88,10 @@ def test_detects_self_reference():
                     EvidenceRelationshipType.DEPENDS_ON
                 ),
                 source="test",
+                rationale=(
+                    "Differential current is explicitly derived "
+                    "from the referenced measurement evidence."
+                ),
             ),
         ),
     )
@@ -95,6 +107,10 @@ def test_detects_duplicate_relationship():
         target_evidence_id="e2",
         relation=EvidenceRelationshipType.VALIDATES,
         source="test",
+        rationale=(
+            "Differential current is explicitly derived "
+            "from the referenced measurement evidence."
+        ),
     )
 
     source = _evidence(
@@ -122,6 +138,10 @@ def test_reports_all_relationship_failures_together():
         target_evidence_id="missing",
         relation=EvidenceRelationshipType.INVALIDATES,
         source="test",
+        rationale=(
+            "Differential current is explicitly derived "
+            "from the referenced measurement evidence."
+        ),
     )
 
     source = _evidence(
@@ -135,6 +155,10 @@ def test_reports_all_relationship_failures_together():
                     EvidenceRelationshipType.DEPENDS_ON
                 ),
                 source="test",
+                rationale=(
+                    "Differential current is explicitly derived "
+                    "from the referenced measurement evidence."
+                ),
             ),
         ),
     )
@@ -147,4 +171,3 @@ def test_reports_all_relationship_failures_together():
     assert result.duplicate_relationships == [
         "e1|missing|invalidates"
     ]
-    
