@@ -6,16 +6,13 @@ from app.lineage.builder import (
 )
 from app.lineage.contracts import (
     LineageNodeType,
-)
-
-from app.lineage.contracts import (
     LineageRelation,
 )
 
 
 def test_builds_empty_graph():
     session = EngineeringSession()
-
+ 
     graph = build_lineage_graph(session)
 
     assert graph.nodes == ()

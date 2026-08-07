@@ -153,7 +153,7 @@ def test_does_not_create_edge_for_missing_target():
                 rationale=(
                     "The differential current is derived from the "
                     "high-voltage current measurement."
-                )
+                ), 
             ),
         ),
     )

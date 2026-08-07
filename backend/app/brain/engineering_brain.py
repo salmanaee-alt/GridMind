@@ -13,6 +13,9 @@ from app.transformer.evidence_quality import score_evidence_quality
 from app.brain.reasoning_trace_audit import (
     build_reasoning_trace_audit,
 )
+from app.thinking.integration import (
+    run_shadow_thinking_pipeline,
+)
 
 @dataclass
 class StageResult:
@@ -28,15 +31,22 @@ class EngineeringBrain:
         "high": 3,
     }
 
-    def run(self, session: EngineeringSession) -> EngineeringSession:
+    def run(
+        self,
+        session: EngineeringSession
+    ) -> EngineeringSession:
         if session.status == InvestigationStatus.COMPLETED:
             session.add_reasoning_step({
                 "stage": "brain_guard",
-                "summary": "Session is already completed. No additional reasoning was executed.",
+                "summary": (
+                    "Session is already completed. "
+                    "No additional reasoning was executed."
+                ),
                 "data": {
                     "status": session.status.value,
                 },
             })
+
             return session
 
         session.set_status(InvestigationStatus.OBSERVING)
@@ -307,6 +317,27 @@ class EngineeringBrain:
         )
 
         session.set_status(InvestigationStatus.COMPLETED)
+
+        try:
+            session = run_shadow_thinking_pipeline(
+                session,
+            )
+
+            session.metadata.setdefault(
+                "thinking",
+                {},
+            )["shadow_execution"] = {
+                "status": "completed",
+            }
+
+        except Exception as exc:
+            session.metadata.setdefault(
+                "thinking",
+                {},
+            )["shadow_execution"] = {
+                "status": "failed",
+                "error": str(exc),
+            }
 
         return session
     
