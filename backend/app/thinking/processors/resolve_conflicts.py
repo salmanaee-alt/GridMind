@@ -38,7 +38,39 @@ class ResolveConflictsProcessor:
         self,
         state: ThinkingState,
     ) -> ThinkingState:
-        conflicts: list[dict[str, Any]] = []
+        evidence_graph = (
+            state.graph_context.evidence_graph
+        )
+
+        graph_conflicts: list[
+            dict[str, Any]
+        ] = []
+
+        if evidence_graph is not None:
+            for edge in evidence_graph.edges:
+                if edge.relation.value not in {
+                    "contradicts",
+                    "invalidates",
+                }:
+                    continue
+
+                graph_conflicts.append(
+                    {
+                        "source_node": (
+                            edge.source_node
+                        ),
+                        "target_node": (
+                            edge.target_node
+                        ),
+                        "relation": (
+                            edge.relation.value
+                        ),
+                    }
+                )
+
+        conflicts: list[
+            dict[str, Any]
+        ] = []
 
         for index, evidence in enumerate(
             state.evidence
@@ -62,7 +94,9 @@ class ResolveConflictsProcessor:
             ):
                 conflicts.append(
                     {
-                        "source_type": "hypothesis",
+                        "source_type": (
+                            "hypothesis"
+                        ),
                         "source_index": index,
                         "conflict": conflict,
                     }
@@ -86,6 +120,16 @@ class ResolveConflictsProcessor:
                             "requires_review"
                             if conflicts
                             else "no_conflicts"
+                        ),
+                        "graph_context_used": (
+                            evidence_graph
+                            is not None
+                        ),
+                        "graph_conflict_count": (
+                            len(graph_conflicts)
+                        ),
+                        "graph_conflicts": tuple(
+                            graph_conflicts
                         ),
                     },
                 }

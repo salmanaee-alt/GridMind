@@ -16,7 +16,7 @@ def _extract_confidence(
 
     value = evidence.get("confidence")
 
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return float(value)
 
     return None
@@ -29,8 +29,16 @@ class RankEvidenceProcessor:
         self,
         state: ThinkingState,
     ) -> ThinkingState:
-        ranked: list[dict[str, Any]] = []
+        evidence_graph = (
+            state.graph_context.evidence_graph
+        )
 
+        graph_available = (
+            evidence_graph is not None
+            and bool(evidence_graph.nodes)
+        )
+
+        ranked: list[dict[str, Any]] = []
         unranked_count = 0
 
         for index, evidence in enumerate(
@@ -72,11 +80,24 @@ class RankEvidenceProcessor:
                         "unranked_count": (
                             unranked_count
                         ),
-                        "ranking": tuple(ranked),
+                        "ranking": tuple(
+                            ranked
+                        ),
                         "ranking_status": (
                             "available"
                             if ranked
                             else "insufficient_metadata"
+                        ),
+                        "graph_context_used": (
+                            graph_available
+                        ),
+                        "graph_node_count": (
+                            len(
+                                evidence_graph.nodes
+                            )
+                            if evidence_graph
+                            is not None
+                            else 0
                         ),
                     },
                 }

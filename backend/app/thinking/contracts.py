@@ -8,6 +8,9 @@ from pydantic import (
     ConfigDict,
     Field,
 )
+from app.thinking.graph_context import (
+    ThinkingGraphContext,
+)
 
 
 class FrozenThinkingModel(BaseModel):
@@ -51,6 +54,10 @@ class ThinkingState(FrozenThinkingModel):
 
     current_stage: ThinkingStage = (
         ThinkingStage.OBSERVE
+    )
+
+    graph_context: ThinkingGraphContext = (
+    ThinkingGraphContext()
     )
 
     observations: tuple[Any, ...] = ()

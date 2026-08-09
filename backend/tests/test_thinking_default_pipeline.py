@@ -195,3 +195,34 @@ def test_pipeline_does_not_authorize_execution():
         ]["execution_authorized"]
         is False
     )
+
+    assert (
+        state.graph_context.shadow_only
+        is True
+    )
+
+    assert (
+        state.graph_context.evidence_graph
+        is not None
+    )
+
+    assert (
+        state.graph_context.lineage_graph
+        is not None
+    )
+
+    assert (
+        len(
+            state.graph_context
+            .evidence_graph.nodes
+        )
+        == 0
+    )
+
+    assert (
+        len(
+            state.graph_context
+            .lineage_graph.nodes
+        )
+        == 1
+    )

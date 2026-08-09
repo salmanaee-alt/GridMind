@@ -35,6 +35,22 @@ from app.thinking.processors.explain import (
 from app.thinking.processors.learn import (
     LearnProcessor,
 )
+from app.brain.evidence_graph_contracts import (
+    EvidenceEdge,
+    EvidenceGraph,
+    EvidenceNode,
+    EvidenceRelation,
+)
+from app.thinking.graph_context import (
+    ThinkingGraphContext,
+)
+from app.lineage.contracts import (
+    LineageEdge,
+    LineageGraph,
+    LineageNode,
+    LineageNodeType,
+    LineageRelation,
+)
     
 
 def test_observe_processor_reports_observation_count():
@@ -950,6 +966,8 @@ def test_explain_processor_builds_structured_summary():
         "physics_check_count": 1,
         "safety_finding_count": 1,
         "decision_count": 1,
+        "lineage_node_count": 0,
+        "lineage_edge_count": 0,
     }
 
     assert (
@@ -1187,3 +1205,292 @@ def test_learn_processor_preserves_shadow_safety():
     assert result.shadow_only is True
     assert result.affects_reasoning is False
     assert result.affects_decision is False
+
+
+def test_rank_evidence_processor_reports_graph_context_usage():
+    state = ThinkingState(
+        session_id="session-1",
+        evidence=(
+            {
+                "evidence_id": "e1",
+                "confidence": 0.9,
+            },
+        ),
+        graph_context=ThinkingGraphContext(
+            evidence_graph=EvidenceGraph(
+                nodes=[
+                    EvidenceNode(
+                        node_id="evidence-node:e1",
+                        evidence_id="e1",
+                        evidence_type="test",
+                        category="physics",
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    result = RankEvidenceProcessor().execute(
+        state
+    )
+
+    metadata = result.metadata[
+        "rank_evidence_stage"
+    ]
+
+    assert (
+        metadata["graph_context_used"]
+        is True
+    )
+
+    assert (
+        metadata["graph_node_count"]
+        == 1
+    )
+
+
+def test_resolve_conflicts_processor_reads_graph_conflicts():
+    state = ThinkingState(
+        session_id="session-1",
+        graph_context=ThinkingGraphContext(
+            evidence_graph=EvidenceGraph(
+                nodes=[
+                    EvidenceNode(
+                        node_id="evidence-node:e1",
+                        evidence_id="e1",
+                        evidence_type="test",
+                        category="physics",
+                    ),
+                    EvidenceNode(
+                        node_id="evidence-node:e2",
+                        evidence_id="e2",
+                        evidence_type="test",
+                        category="measurement",
+                    ),
+                ],
+                edges=[
+                    EvidenceEdge(
+                        source_node="evidence-node:e1",
+                        target_node="evidence-node:e2",
+                        relation=(
+                            EvidenceRelation.CONTRADICTS
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    result = (
+        ResolveConflictsProcessor()
+        .execute(state)
+    )
+
+    metadata = result.metadata[
+        "resolve_conflicts_stage"
+    ]
+
+    assert (
+        metadata["graph_context_used"]
+        is True
+    )
+
+    assert (
+        metadata["graph_conflict_count"]
+        == 1
+    )
+
+    assert metadata["graph_conflicts"] == (
+        {
+            "source_node": "evidence-node:e1",
+            "target_node": "evidence-node:e2",
+            "relation": "contradicts",
+        },
+    )
+
+
+def test_explain_processor_reads_lineage_graph():
+    state = ThinkingState(
+        session_id="session-1",
+        observations=(
+            {
+                "type": "relay_event",
+            },
+        ),
+        graph_context=ThinkingGraphContext(
+            lineage_graph=LineageGraph(
+                nodes=(
+                    LineageNode(
+                        node_id="evidence:0",
+                        node_type=(
+                            LineageNodeType.EVIDENCE
+                        ),
+                        display_name=(
+                            "Evidence 1"
+                        ),
+                    ),
+                    LineageNode(
+                        node_id="decision:0",
+                        node_type=(
+                            LineageNodeType.DECISION
+                        ),
+                        display_name=(
+                            "Decision 1"
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    result = ExplainProcessor().execute(
+        state
+    )
+
+    metadata = result.metadata[
+        "explain_stage"
+    ]
+
+    assert (
+        metadata["graph_context_used"]
+        is True
+    )
+
+    assert metadata[
+        "lineage_node_count"
+    ] == 2
+
+    assert metadata[
+        "lineage_edge_count"
+    ] == 0
+
+    assert (
+        result.explanations[0][
+            "lineage_context"
+        ]["available"]
+        is True
+    )
+
+
+def test_understand_processor_reports_graph_metrics():
+    state = ThinkingState(
+        session_id="session-1",
+        graph_context=ThinkingGraphContext(
+            evidence_graph=EvidenceGraph(
+                nodes=[
+                    EvidenceNode(
+                        node_id="e1",
+                        evidence_id="e1",
+                        evidence_type="physics",
+                        category="physics",
+                    ),
+                ],
+            ),
+            lineage_graph=LineageGraph(
+                nodes=(
+                    LineageNode(
+                        node_id="decision:0",
+                        node_type=LineageNodeType.DECISION,
+                        display_name="Decision",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    result = (
+        UnderstandProcessor()
+        .execute(state)
+    )
+
+    metadata = result.metadata[
+        "understand_stage"
+    ]
+
+    assert metadata["graph_context_used"] is True
+    assert metadata["evidence_graph_nodes"] == 1
+    assert metadata["evidence_graph_edges"] == 0
+    assert metadata["lineage_graph_nodes"] == 1
+    assert metadata["lineage_graph_edges"] == 0
+
+
+def test_explain_processor_builds_decision_traceability():
+    lineage_graph = LineageGraph(
+        nodes=(
+            LineageNode(
+                node_id="decision:0",
+                node_type=LineageNodeType.DECISION,
+                display_name="Decision",
+            ),
+            LineageNode(
+                node_id="hypothesis:0",
+                node_type=LineageNodeType.HYPOTHESIS,
+                display_name="Hypothesis",
+            ),
+            LineageNode(
+                node_id="evidence:0",
+                node_type=LineageNodeType.EVIDENCE,
+                display_name="Evidence",
+            ),
+        ),
+        edges=(
+            LineageEdge(
+                source_node="decision:0",
+                target_node="hypothesis:0",
+                relation=(
+                    LineageRelation.DEPENDS_ON
+                ),
+            ),
+            LineageEdge(
+                source_node="hypothesis:0",
+                target_node="evidence:0",
+                relation=(
+                    LineageRelation.SUPPORTS
+                ),
+            ),
+        ),
+    )
+
+    state = ThinkingState(
+        session_id="session-1",
+        decisions=(
+            {
+                "decision": "investigate",
+            },
+        ),
+        graph_context=ThinkingGraphContext(
+            lineage_graph=lineage_graph,
+        ),
+    )
+
+    result = ExplainProcessor().execute(
+        state
+    )
+
+    lineage_context = (
+        result.explanations[0][
+            "lineage_context"
+        ]
+    )
+
+    assert (
+        lineage_context["traceability"]
+        == (
+            {
+                "decision_node": "decision:0",
+                "reachable_nodes": (
+                    "decision:0",
+                    "hypothesis:0",
+                    "evidence:0",
+                ),
+                "reachable_count": 3,
+            },
+        )
+    )
+
+    assert (
+        result.metadata[
+            "explain_stage"
+        ]["traceability_count"]
+        == 1
+    )
