@@ -24,7 +24,3 @@ def test_confidence_result_defaults():
 
     assert result.propagated_scores == {}
     assert result.contributions == ()
-
-    assert result.shadow_only is True
-    assert result.affects_reasoning is False
-    assert result.affects_decision is False

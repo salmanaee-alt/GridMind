@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -56,15 +54,3 @@ class ConfidencePropagationResult(
         ConfidenceContribution,
         ...,
     ] = ()
-
-    shadow_only: Literal[
-        True
-    ] = True
-
-    affects_reasoning: Literal[
-        False
-    ] = False
-
-    affects_decision: Literal[
-        False
-    ] = False
