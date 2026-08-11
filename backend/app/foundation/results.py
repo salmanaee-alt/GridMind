@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import (
+    Any,
+    Literal,
+)
 
 from pydantic import (
     BaseModel,
@@ -40,8 +43,8 @@ class EngineResult(BaseModel):
 
     execution_summary: str | None = None
 
-    shadow_only: bool = True
+    shadow_only: Literal[True] = True
 
-    affects_reasoning: bool = False
+    affects_reasoning: Literal[False] = False
 
-    affects_decision: bool = False
+    affects_decision: Literal[False] = False
