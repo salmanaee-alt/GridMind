@@ -39,3 +39,29 @@ def test_foundation_has_no_forbidden_dependencies():
                 )
 
     assert violations == []
+
+
+def test_foundation_adapters_do_not_import_each_other():
+    capability_adapter = Path(
+        "app/capabilities/foundation_adapter.py"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    thinking_adapter_path = Path(
+        "app/thinking/foundation_adapter.py"
+    )
+
+    assert "app.thinking" not in capability_adapter
+
+    if thinking_adapter_path.exists():
+        thinking_adapter = (
+            thinking_adapter_path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        assert (
+            "app.capabilities"
+            not in thinking_adapter
+        )
