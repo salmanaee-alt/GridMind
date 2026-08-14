@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from types import SimpleNamespace
+
 from app.capabilities.base import EngineeringCapability
 from app.capabilities.contracts import (
     CAPABILITY_ABI_VERSION,
@@ -12,6 +14,13 @@ from app.capabilities.contracts import (
 from app.capabilities.foundation_adapter import (
     CAPABILITY_REQUEST_RESOURCE_KEY,
     CapabilityFoundationAdapter,
+)
+from app.capabilities.evidence_interpretation.capability import (
+    EVIDENCE_INTERPRETATION_CAPABILITY_ID,
+    EvidenceInterpretationCapability,
+)
+from app.capabilities.evidence_interpretation.capability_manifest import (
+    EVIDENCE_INTERPRETATION_CAPABILITY_MANIFEST,
 )
 from app.capabilities.manifest import CapabilityManifest
 from app.capabilities.registry import CapabilityRegistry
@@ -334,3 +343,143 @@ def test_capability_adapter_exposes_audit_outside_payload():
         or "audit"
         in result.diagnostics.metadata
     )
+
+
+def test_capability_adapter_end_to_end_with_real_capability():
+    capability = EvidenceInterpretationCapability()
+
+    registry = CapabilityRegistry()
+    registry.register(
+        capability=capability,
+        manifest=(
+            EVIDENCE_INTERPRETATION_CAPABILITY_MANIFEST
+        ),
+    )
+
+    runtime = CapabilityRuntime(
+        registry=registry,
+    )
+
+    request = CapabilityRequest(
+        request_id="REQ-E2E-0001",
+        payload={
+            "domain": "transformer",
+            "asset_type": "power_transformer",
+            "available_evidence": (
+                "buchholz_alarm",
+            ),
+            "missing_evidence": (),
+            "investigation_stage": "initial",
+        },
+        context={
+            "execution_mode": "shadow",
+        },
+    )
+
+    direct_execution = runtime.invoke(
+        capability_id=(
+            EVIDENCE_INTERPRETATION_CAPABILITY_ID
+        ),
+        request=request,
+    )
+
+    adapter = CapabilityFoundationAdapter(
+        capability_id=(
+            EVIDENCE_INTERPRETATION_CAPABILITY_ID
+        ),
+        runtime=runtime,
+        metadata=capability.metadata(),
+    )
+
+    adapted_result = adapter.execute(
+        ExecutionContext(
+            resources={
+                CAPABILITY_REQUEST_RESOURCE_KEY:
+                    request,
+            }
+        )
+    )
+
+    assert (
+        adapted_result.status
+        == ExecutionStatus.SUCCESS
+    )
+
+    assert (
+        adapted_result.payload
+        == direct_execution.result.output
+    )
+
+    assert (
+        adapted_result.metadata["audit"]
+        == direct_execution.audit
+    )
+
+    assert (
+        adapted_result.diagnostics.traceability
+        == (
+            "REQ-E2E-0001",
+        )
+    )
+
+    assert adapted_result.shadow_only is True
+    assert adapted_result.affects_reasoning is False
+    assert adapted_result.affects_decision is False
+
+class UnsafeCapabilityRuntime(
+    CapabilityRuntime
+):
+    def invoke(
+        self,
+        *,
+        capability_id: str,
+        request: CapabilityRequest,
+    ):
+        unsafe_result = SimpleNamespace(
+            capability_id=capability_id,
+            status="success",
+            output={},
+            audit={},
+            affects_decision=True,
+        )
+
+        return SimpleNamespace(
+            result=unsafe_result,
+            audit={},
+            duration_ms=0.0,
+            error=None,
+        )
+
+
+def test_capability_adapter_native_safety_violation_is_rejected():
+    registry = CapabilityRegistry()
+
+    runtime = UnsafeCapabilityRuntime(
+        registry=registry,
+    )
+
+    metadata = CapabilityMetadata(
+        capability_id="CAP-TEST-2001",
+        name="Unsafe Test Capability",
+        version="1.0.0",
+        abi_version=CAPABILITY_ABI_VERSION,
+        shadow_only=True,
+        affects_decision=False,
+    )
+
+    adapter = CapabilityFoundationAdapter(
+        capability_id="CAP-TEST-2001",
+        runtime=runtime,
+        metadata=metadata,
+    )
+
+    with pytest.raises(ValueError):
+        adapter.execute(
+            ExecutionContext(
+                resources={
+                    CAPABILITY_REQUEST_RESOURCE_KEY:
+                        build_request(),
+                }
+            )
+        )
+        

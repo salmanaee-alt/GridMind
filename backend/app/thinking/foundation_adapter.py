@@ -146,7 +146,16 @@ class ThinkingFoundationAdapter:
 
         return EngineResult(
             status=status,
-            payload=final_state,
+            payload={
+                "current_stage":
+                    final_state.current_stage.value,
+                "stage_history": [
+                    record.stage.value
+                    for record in final_state.stage_history
+                ],
+                "metadata":
+                    final_state.metadata,
+            },
             diagnostics=diagnostics,
             metadata={
                 "session_id":

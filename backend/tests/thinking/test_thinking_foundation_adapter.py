@@ -16,6 +16,9 @@ from app.thinking.foundation_adapter import (
     THINKING_STATE_RESOURCE_KEY,
     ThinkingFoundationAdapter,
 )
+from app.thinking.engine import (
+    EngineeringThinkingEngine,
+)
 
 
 def build_state() -> ThinkingState:
@@ -88,16 +91,18 @@ def test_thinking_adapter_success_mapping():
 
     assert isinstance(
         result.payload,
-        ThinkingState,
+        dict,
     )
 
     assert (
-        result.payload.current_stage
-        == ThinkingStage.COMPLETED
+        result.payload["current_stage"]
+        == ThinkingStage.COMPLETED.value
     )
 
     assert (
-        len(result.payload.stage_history)
+        len(
+            result.payload["stage_history"]
+        )
         == 11
     )
 
@@ -105,8 +110,7 @@ def test_thinking_adapter_success_mapping():
     assert result.affects_reasoning is False
     assert result.affects_decision is False
 
-
-def test_thinking_adapter_preserves_native_payload():
+def test_thinking_adapter_projects_native_result():
     adapter = build_adapter()
 
     state = build_state()
@@ -120,16 +124,18 @@ def test_thinking_adapter_preserves_native_payload():
         )
     )
 
-    assert result.payload.session_id == (
-        state.session_id
+    assert result.payload[
+        "current_stage"
+    ] == ThinkingStage.COMPLETED.value
+
+    assert isinstance(
+        result.payload["stage_history"],
+        list,
     )
 
-    assert result.payload.observations == (
-        state.observations
-    )
-
-    assert result.payload.evidence == (
-        state.evidence
+    assert isinstance(
+        result.payload["metadata"],
+        dict,
     )
 
 
@@ -165,14 +171,17 @@ def test_thinking_adapter_diagnostics_derive_from_history():
 
     assert (
         result.diagnostics.processed_items
-        == len(result.payload.stage_history)
+        == len(
+            result.payload[
+                "stage_history"
+            ]
+        )
     )
 
     assert (
         result.diagnostics.processed_items
         == 11
     )
-
 
 def test_thinking_adapter_missing_state():
     adapter = build_adapter()
@@ -241,8 +250,94 @@ def test_thinking_adapter_does_not_authorize_execution():
     assert result.affects_decision is False
 
     assert (
-        result.payload.metadata[
+        result.payload[
+            "metadata"
+        ][
             "decide_stage"
-        ]["execution_authorized"]
+        ][
+            "execution_authorized"
+        ]
         is False
     )
+
+
+def test_thinking_adapter_stage_history_matches_native_pipeline():
+    state = build_state()
+
+    native_engine = build_default_thinking_engine()
+    native_result = native_engine.execute(
+        state
+    )
+
+    adapter = ThinkingFoundationAdapter(
+        engine=build_default_thinking_engine(),
+    )
+
+    adapted_result = adapter.execute(
+        ExecutionContext(
+            resources={
+                THINKING_STATE_RESOURCE_KEY:
+                    state,
+            }
+        )
+    )
+
+    assert (
+        adapted_result.payload[
+            "stage_history"
+        ]
+        == [
+            record.stage.value
+            for record
+            in native_result.stage_history
+        ]
+    )
+
+    assert (
+        adapted_result.payload[
+            "current_stage"
+        ]
+        == native_result.current_stage.value
+    )
+
+    assert (
+        adapted_result.payload[
+            "metadata"
+        ]
+        == native_result.metadata
+    )
+
+class UnsafeThinkingEngine(
+    EngineeringThinkingEngine
+):
+    def execute(
+        self,
+        state: ThinkingState,
+    ):
+        class UnsafeResult:
+            session_id = state.session_id
+            current_stage = ThinkingStage.COMPLETED
+            stage_history = ()
+            metadata = {}
+            shadow_only = False
+            affects_reasoning = True
+            affects_decision = True
+
+        return UnsafeResult()
+
+
+def test_thinking_adapter_native_safety_violation_is_rejected():
+    adapter = ThinkingFoundationAdapter(
+        engine=UnsafeThinkingEngine(),
+    )
+
+    with pytest.raises(ValueError):
+        adapter.execute(
+            ExecutionContext(
+                resources={
+                    THINKING_STATE_RESOURCE_KEY:
+                        build_state(),
+                }
+            )
+        )
+                    
