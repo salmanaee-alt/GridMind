@@ -204,3 +204,11 @@ def test_manifest_preserves_registration_order_contracts():
         "first_output",
         "second_output",
     )
+
+
+def test_manifest_rejects_non_shadow_mode():
+    payload = build_manifest().model_dump()
+    payload["shadow_only"] = False
+
+    with pytest.raises(ValidationError):
+        CapabilityManifest(**payload)

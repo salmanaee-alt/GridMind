@@ -243,3 +243,15 @@ def test_capability_result_preserves_payloads_without_mutating_request():
 
     assert request.model_dump() == request_before
     assert result.output is not request.payload
+
+
+def test_capability_metadata_rejects_non_shadow_mode():
+    with pytest.raises(ValidationError):
+        CapabilityMetadata(
+            capability_id="CAP-TEST-0004",
+            name="Non Shadow Capability",
+            version="1.0.0",
+            abi_version=CAPABILITY_ABI_VERSION,
+            shadow_only=False,
+            affects_decision=False,
+        )

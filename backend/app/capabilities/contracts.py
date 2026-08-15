@@ -52,7 +52,7 @@ class CapabilityMetadata(FrozenCapabilityModel):
     abi_version: str = Field(
         pattern=r"^[0-9]+\.[0-9]+$"
     )
-    shadow_only: bool
+    shadow_only: Literal[True] = True
     affects_decision: Literal[False] = False
 
 

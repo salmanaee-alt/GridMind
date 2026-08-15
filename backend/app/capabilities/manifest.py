@@ -41,7 +41,7 @@ class CapabilityManifest(FrozenCapabilityModel):
     )
     requires: tuple[str, ...] = ()
     produces: tuple[str, ...] = ()
-    shadow_only: bool
+    shadow_only: Literal[True] = True
     affects_decision: Literal[False] = False
     status: CapabilityManifestStatus
     author: str = Field(
