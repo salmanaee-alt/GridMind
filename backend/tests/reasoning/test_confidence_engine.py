@@ -497,3 +497,309 @@ def test_confidence_propagation_clamps_after_full_aggregation():
     assert result.payload.propagated_scores[
         "hypothesis:0"
     ] == pytest.approx(0.90)
+
+
+def test_confidence_propagation_reports_processed_items():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+            GraphEdge(
+                source_node_id="evidence:1",
+                target_node_id="hypothesis:0",
+                relation="contradicts",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+                "evidence:1": 0.30,
+            },
+        )
+    )
+
+    assert result.diagnostics.processed_items == 2
+    assert result.diagnostics.skipped_items == 0
+    assert result.diagnostics.coverage == pytest.approx(1.0)
+
+
+def test_confidence_propagation_reports_skipped_missing_score():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+            GraphEdge(
+                source_node_id="evidence:1",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+        )
+    )
+
+    assert result.diagnostics.processed_items == 1
+    assert result.diagnostics.skipped_items == 1
+    assert result.diagnostics.coverage == pytest.approx(0.5)
+
+
+def test_confidence_propagation_warns_on_invalid_confidence():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 1.50,
+            },
+        )
+    )
+
+    assert result.status == ExecutionStatus.SUCCESS
+    assert result.payload.contributions == ()
+    assert result.diagnostics.processed_items == 0
+    assert result.diagnostics.skipped_items == 1
+    assert result.diagnostics.warnings
+
+    assert any(
+        "evidence:0" in warning
+        for warning in result.diagnostics.warnings
+    )
+
+
+def test_confidence_propagation_warns_on_unsupported_relation():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="related_to",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+        )
+    )
+
+    assert result.diagnostics.processed_items == 0
+    assert result.diagnostics.skipped_items == 1
+    assert result.diagnostics.warnings
+
+
+def test_confidence_propagation_traceability_contains_contributing_sources():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+            GraphEdge(
+                source_node_id="evidence:1",
+                target_node_id="hypothesis:0",
+                relation="contradicts",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+                "evidence:1": 0.30,
+            },
+        )
+    )
+
+    assert result.diagnostics.traceability == (
+        "evidence:0",
+        "evidence:1",
+    )
+
+
+def test_confidence_propagation_traceability_excludes_skipped_sources():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+            GraphEdge(
+                source_node_id="evidence:1",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+        )
+    )
+
+    assert result.diagnostics.traceability == (
+        "evidence:0",
+    )
+
+
+def test_confidence_propagation_traceability_is_unique():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:1",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+        )
+    )
+
+    assert result.diagnostics.traceability == (
+        "evidence:0",
+    )
+
+
+def test_confidence_propagation_is_deterministic_across_edge_order():
+    edges_a = (
+        GraphEdge(
+            source_node_id="evidence:0",
+            target_node_id="hypothesis:0",
+            relation="supports",
+        ),
+        GraphEdge(
+            source_node_id="evidence:1",
+            target_node_id="hypothesis:0",
+            relation="contradicts",
+        ),
+    )
+
+    edges_b = tuple(
+        reversed(edges_a)
+    )
+
+    scores = {
+        "evidence:0": 0.80,
+        "evidence:1": 0.30,
+    }
+
+    result_a = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=build_graph(
+                edges=edges_a,
+            ),
+            scores=scores,
+        )
+    )
+
+    result_b = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=build_graph(
+                edges=edges_b,
+            ),
+            scores=scores,
+        )
+    )
+
+    assert (
+        result_a.payload.propagated_scores
+        == result_b.payload.propagated_scores
+    )
+
+
+def test_confidence_propagation_score_is_traceable_to_contributions():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+            GraphEdge(
+                source_node_id="evidence:1",
+                target_node_id="hypothesis:0",
+                relation="contradicts",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+                "evidence:1": 0.30,
+            },
+        )
+    )
+
+    contribution_total = sum(
+        contribution.propagated_confidence
+        for contribution in result.payload.contributions
+        if (
+            contribution.target_node
+            == "hypothesis:0"
+        )
+    )
+
+    expected = max(
+        -1.0,
+        min(
+            1.0,
+            contribution_total,
+        ),
+    )
+
+    assert result.payload.propagated_scores[
+        "hypothesis:0"
+    ] == pytest.approx(expected)
+    

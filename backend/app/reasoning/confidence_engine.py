@@ -19,6 +19,9 @@ from app.reasoning.confidence_contracts import (
     ConfidenceContribution,
     ConfidencePropagationResult,
 )
+from app.foundation.diagnostics import (
+    EngineDiagnostics,
+)
 
 
 CONFIDENCE_GRAPH_RESOURCE_KEY = (
@@ -88,17 +91,35 @@ class ConfidencePropagationEngine:
             ConfidenceContribution
         ] = []
 
+        warnings: list[str] = []
+        traceability: list[str] = []
+        processed_items = 0
+        skipped_items = 0
+
         for edge in graph.edges:
             if edge.relation not in {
                 "supports",
                 "contradicts",
             }:
+                skipped_items += 1
+                warnings.append(
+                    "Skipped edge "
+                    f"{edge.source_node_id!r} -> "
+                    f"{edge.target_node_id!r}: "
+                    f"unsupported relation {edge.relation!r}."
+                )
                 continue
 
             if (
                 edge.source_node_id
                 not in confidence_scores
             ):
+                skipped_items += 1
+                warnings.append(
+                    "Skipped edge from "
+                    f"{edge.source_node_id!r}: "
+                    "missing source confidence."
+                )
                 continue
 
             incoming_confidence = (
@@ -119,6 +140,12 @@ class ConfidencePropagationEngine:
                 or incoming_confidence < -1.0
                 or incoming_confidence > 1.0
             ):
+                skipped_items += 1
+                warnings.append(
+                    "Skipped edge from "
+                    f"{edge.source_node_id!r}: "
+                    "invalid source confidence."
+                )
                 continue
 
             incoming_confidence = float(
@@ -159,6 +186,16 @@ class ConfidencePropagationEngine:
                 )
             )
 
+            processed_items += 1
+
+            if (
+                edge.source_node_id
+                not in traceability
+            ):
+                traceability.append(
+                    edge.source_node_id
+                )
+
             target_totals[
                 edge.target_node_id
             ] = (
@@ -168,6 +205,16 @@ class ConfidencePropagationEngine:
                 )
                 + propagated_confidence
             )
+
+        total_edges = len(
+            graph.edges
+        )
+
+        coverage = (
+            1.0
+            if total_edges == 0
+            else processed_items / total_edges
+        )
 
         propagated_scores = {
             target_node: max(
@@ -193,6 +240,21 @@ class ConfidencePropagationEngine:
         return EngineResult(
             status=ExecutionStatus.SUCCESS,
             payload=payload,
+            diagnostics=EngineDiagnostics(
+                processed_items=(
+                    processed_items
+                ),
+                skipped_items=(
+                    skipped_items
+                ),
+                coverage=coverage,
+                traceability=tuple(
+                    traceability
+                ),
+                warnings=tuple(
+                    warnings
+                ),
+            ),
             execution_summary=(
                 "Confidence propagation completed "
                 "using deterministic one-hop "
