@@ -14,6 +14,7 @@ from app.reasoning.confidence_engine import (
     ConfidencePropagationEngine,
 )
 from app.reasoning.confidence_contracts import (
+    ConfidencePropagationRequest,
     ConfidencePropagationResult,
 )
 
@@ -113,15 +114,16 @@ def build_context(
 ) -> ExecutionContext:
     resources = {}
 
-    if graph is not None:
+    if (
+        graph is not None
+        and scores is not None
+    ):
         resources[
-            CONFIDENCE_GRAPH_RESOURCE_KEY
-        ] = graph
-
-    if scores is not None:
-        resources[
-            CONFIDENCE_SCORES_RESOURCE_KEY
-        ] = scores
+            "confidence_request"
+        ] = ConfidencePropagationRequest(
+            graph=graph,
+            confidence_scores=scores,
+        )
 
     return ExecutionContext(
         resources=resources,
@@ -560,7 +562,7 @@ def test_confidence_propagation_reports_skipped_missing_score():
     assert result.diagnostics.coverage == pytest.approx(0.5)
 
 
-def test_confidence_propagation_warns_on_invalid_confidence():
+def test_confidence_engine_receives_validated_confidence_scores():
     graph = build_graph(
         edges=(
             GraphEdge(
@@ -571,25 +573,23 @@ def test_confidence_propagation_warns_on_invalid_confidence():
         )
     )
 
+    request = ConfidencePropagationRequest(
+        graph=graph,
+        confidence_scores={
+            "evidence:0": 0.80,
+        },
+    )
+
     result = ConfidencePropagationEngine().execute(
-        build_context(
-            graph=graph,
-            scores={
-                "evidence:0": 1.50,
-            },
+        ExecutionContext(
+            resources={
+                "confidence_request": request,
+            }
         )
     )
 
     assert result.status == ExecutionStatus.SUCCESS
-    assert result.payload.contributions == ()
-    assert result.diagnostics.processed_items == 0
-    assert result.diagnostics.skipped_items == 1
-    assert result.diagnostics.warnings
-
-    assert any(
-        "evidence:0" in warning
-        for warning in result.diagnostics.warnings
-    )
+    assert result.diagnostics.skipped_items == 0
 
 
 def test_confidence_propagation_warns_on_unsupported_relation():
@@ -802,4 +802,40 @@ def test_confidence_propagation_score_is_traceable_to_contributions():
     assert result.payload.propagated_scores[
         "hypothesis:0"
     ] == pytest.approx(expected)
-    
+
+
+def test_confidence_engine_accepts_typed_request_resource():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    request = ConfidencePropagationRequest(
+        graph=graph,
+        confidence_scores={
+            "evidence:0": 0.8,
+        },
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        ExecutionContext(
+            resources={
+                "confidence_request": request,
+            }
+        )
+    )
+
+    assert result.status == ExecutionStatus.SUCCESS
+
+
+def test_confidence_engine_skips_without_typed_request():
+    result = ConfidencePropagationEngine().execute(
+        ExecutionContext()
+    )
+
+    assert result.status == ExecutionStatus.SKIPPED

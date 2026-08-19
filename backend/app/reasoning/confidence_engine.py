@@ -17,6 +17,7 @@ from app.graph.contracts import (
 )
 from app.reasoning.confidence_contracts import (
     ConfidenceContribution,
+    ConfidencePropagationRequest,
     ConfidencePropagationResult,
 )
 from app.foundation.diagnostics import (
@@ -24,12 +25,8 @@ from app.foundation.diagnostics import (
 )
 
 
-CONFIDENCE_GRAPH_RESOURCE_KEY = (
-    "confidence_graph"
-)
-
-CONFIDENCE_SCORES_RESOURCE_KEY = (
-    "confidence_scores"
+CONFIDENCE_REQUEST_RESOURCE_KEY = (
+    "confidence_request"
 )
 
 
@@ -60,27 +57,20 @@ class ConfidencePropagationEngine:
         self,
         context: ExecutionContext,
     ) -> EngineResult:
-        graph = context.resources.get(
-            CONFIDENCE_GRAPH_RESOURCE_KEY
+        request = context.resources.get(
+            CONFIDENCE_REQUEST_RESOURCE_KEY
         )
 
-        confidence_scores = (
-            context.resources.get(
-                CONFIDENCE_SCORES_RESOURCE_KEY
-            )
-        )
-
-        if (
-            not isinstance(
-                graph,
-                EngineeringGraph,
-            )
-            or not isinstance(
-                confidence_scores,
-                dict,
-            )
+        if not isinstance(
+            request,
+            ConfidencePropagationRequest,
         ):
             return self._skipped_result()
+
+        graph = request.graph
+        confidence_scores = (
+            request.confidence_scores
+        )
 
         target_totals: dict[
             str,
