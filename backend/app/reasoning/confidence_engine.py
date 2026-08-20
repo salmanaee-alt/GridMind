@@ -17,6 +17,7 @@ from app.graph.contracts import (
 )
 from app.reasoning.confidence_contracts import (
     ConfidenceContribution,
+    ConfidenceEdgeWeight,
     ConfidencePropagationRequest,
     ConfidencePropagationResult,
 )
@@ -71,6 +72,15 @@ class ConfidencePropagationEngine:
         confidence_scores = (
             request.confidence_scores
         )
+
+        edge_weights = {
+            (
+                item.source_node,
+                item.target_node,
+                item.relation,
+            ): item.weight
+            for item in request.edge_weights
+        }
 
         target_totals: dict[
             str,
@@ -142,7 +152,14 @@ class ConfidencePropagationEngine:
                 incoming_confidence
             )
 
-            edge_weight = 1.0
+            edge_weight = edge_weights.get(
+                (
+                    edge.source_node_id,
+                    edge.target_node_id,
+                    edge.relation,
+                ),
+                1.0,
+            )
             attenuation = 1.0
 
             propagated_confidence = (

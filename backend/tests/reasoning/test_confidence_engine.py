@@ -16,6 +16,7 @@ from app.reasoning.confidence_engine import (
 from app.reasoning.confidence_contracts import (
     ConfidencePropagationRequest,
     ConfidencePropagationResult,
+    ConfidenceEdgeWeight,
 )
 
 
@@ -839,3 +840,142 @@ def test_confidence_engine_skips_without_typed_request():
     )
 
     assert result.status == ExecutionStatus.SKIPPED
+
+
+def build_context(
+    *,
+    graph: EngineeringGraph | None = None,
+    scores: dict[str, float] | None = None,
+    edge_weights: tuple[
+        ConfidenceEdgeWeight,
+        ...
+    ] = (),
+) -> ExecutionContext:
+    resources = {}
+
+    if (
+        graph is not None
+        and scores is not None
+    ):
+        resources[
+            "confidence_request"
+        ] = ConfidencePropagationRequest(
+            graph=graph,
+            confidence_scores=scores,
+            edge_weights=edge_weights,
+        )
+
+    return ExecutionContext(
+        resources=resources,
+    )
+
+
+def test_confidence_propagation_applies_explicit_edge_weight():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+            edge_weights=(
+                ConfidenceEdgeWeight(
+                    source_node="evidence:0",
+                    target_node="hypothesis:0",
+                    relation="supports",
+                    weight=0.50,
+                ),
+            ),
+        )
+    )
+
+    assert result.payload.propagated_scores[
+        "hypothesis:0"
+    ] == pytest.approx(0.40)
+
+    contribution = (
+        result.payload.contributions[0]
+    )
+
+    assert contribution.edge_weight == pytest.approx(
+        0.50
+    )
+    assert (
+        contribution.propagated_confidence
+        == pytest.approx(0.40)
+    )
+
+
+def test_confidence_propagation_defaults_edge_weight_to_one():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+        )
+    )
+
+    contribution = (
+        result.payload.contributions[0]
+    )
+
+    assert contribution.edge_weight == pytest.approx(
+        1.0
+    )
+
+    assert result.payload.propagated_scores[
+        "hypothesis:0"
+    ] == pytest.approx(0.80)
+
+
+def test_confidence_propagation_weights_contradiction():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="contradicts",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+            edge_weights=(
+                ConfidenceEdgeWeight(
+                    source_node="evidence:0",
+                    target_node="hypothesis:0",
+                    relation="contradicts",
+                    weight=0.25,
+                ),
+            ),
+        )
+    )
+
+    assert result.payload.propagated_scores[
+        "hypothesis:0"
+    ] == pytest.approx(-0.20)

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from typing import Any
 
 from pydantic import (
@@ -9,6 +7,7 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
+    model_validator,
 )
 
 from app.graph.contracts import (
@@ -22,6 +21,46 @@ class FrozenConfidenceModel(BaseModel):
     )
 
 
+class ConfidenceEdgeWeight(
+    FrozenConfidenceModel,
+):
+    source_node: str = Field(
+        min_length=1,
+    )
+
+    target_node: str = Field(
+        min_length=1,
+    )
+
+    relation: str = Field(
+        min_length=1,
+    )
+
+    weight: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    @field_validator(
+        "weight",
+        mode="before",
+    )
+    @classmethod
+    def reject_boolean_weight(
+        cls,
+        value: Any,
+    ) -> Any:
+        if isinstance(
+            value,
+            bool,
+        ):
+            raise ValueError(
+                "edge weight must not be boolean."
+            )
+
+        return value
+
+
 class ConfidencePropagationRequest(
     FrozenConfidenceModel,
 ):
@@ -33,6 +72,11 @@ class ConfidencePropagationRequest(
     ] = Field(
         default_factory=dict,
     )
+
+    edge_weights: tuple[
+        ConfidenceEdgeWeight,
+        ...,
+    ] = ()
 
     @field_validator(
         "confidence_scores",
@@ -100,6 +144,27 @@ class ConfidencePropagationRequest(
             ] = confidence
 
         return validated
+
+    @model_validator(mode="after")
+    def reject_duplicate_edge_weights(
+        self,
+    ) -> "ConfidencePropagationRequest":
+        identities = [
+            (
+                item.source_node,
+                item.target_node,
+                item.relation,
+            )
+            for item in self.edge_weights
+        ]
+
+        if len(identities) != len(set(identities)):
+            raise ValueError(
+                "edge weights must be unique by "
+                "source, target, and relation."
+            )
+
+        return self
 
 
 class ConfidenceContribution(
