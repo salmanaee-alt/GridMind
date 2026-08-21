@@ -178,6 +178,49 @@ def test_confidence_request_accepts_edge_weights():
         weight,
     )
 
+
+def test_confidence_request_accepts_edge_weights():
+    graph = EngineeringGraph(
+        graph_id="confidence-request",
+        nodes=(
+            GraphNode(
+                node_id="evidence:0",
+                node_type="evidence",
+            ),
+            GraphNode(
+                node_id="hypothesis:0",
+                node_type="hypothesis",
+            ),
+        ),
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        ),
+    )
+
+    weight = ConfidenceEdgeWeight(
+        source_node="evidence:0",
+        target_node="hypothesis:0",
+        relation="supports",
+        weight=0.75,
+    )
+
+    request = ConfidencePropagationRequest(
+        graph=graph,
+        confidence_scores={},
+        edge_weights=(
+            weight,
+        ),
+    )
+
+    assert request.edge_weights == (
+        weight,
+    )
+
+
 def test_confidence_request_rejects_duplicate_edge_weights():
     graph = EngineeringGraph(
         graph_id="confidence-request",
@@ -204,27 +247,79 @@ def test_confidence_request_rejects_duplicate_edge_weights():
         )
 
 
-def test_confidence_request_rejects_duplicate_edge_weights():
+def test_confidence_request_rejects_orphan_edge_weight():
     graph = EngineeringGraph(
         graph_id="confidence-request",
+        nodes=(
+            GraphNode(
+                node_id="evidence:0",
+                node_type="evidence",
+            ),
+            GraphNode(
+                node_id="hypothesis:0",
+                node_type="hypothesis",
+            ),
+        ),
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        ),
     )
 
     with pytest.raises(ValidationError):
         ConfidencePropagationRequest(
             graph=graph,
-            confidence_scores={},
+            confidence_scores={
+                "evidence:0": 0.80,
+            },
+            edge_weights=(
+                ConfidenceEdgeWeight(
+                    source_node="evidence:9",
+                    target_node="hypothesis:9",
+                    relation="supports",
+                    weight=0.50,
+                ),
+            ),
+        )
+
+
+def test_confidence_request_rejects_weight_with_wrong_relation():
+    graph = EngineeringGraph(
+        graph_id="confidence-request",
+        nodes=(
+            GraphNode(
+                node_id="evidence:0",
+                node_type="evidence",
+            ),
+            GraphNode(
+                node_id="hypothesis:0",
+                node_type="hypothesis",
+            ),
+        ),
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        ),
+    )
+
+    with pytest.raises(ValidationError):
+        ConfidencePropagationRequest(
+            graph=graph,
+            confidence_scores={
+                "evidence:0": 0.80,
+            },
             edge_weights=(
                 ConfidenceEdgeWeight(
                     source_node="evidence:0",
                     target_node="hypothesis:0",
-                    relation="supports",
-                    weight=0.40,
-                ),
-                ConfidenceEdgeWeight(
-                    source_node="evidence:0",
-                    target_node="hypothesis:0",
-                    relation="supports",
-                    weight=0.80,
+                    relation="contradicts",
+                    weight=0.50,
                 ),
             ),
         )

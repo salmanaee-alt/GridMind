@@ -14,6 +14,7 @@ from app.graph.contracts import (
     EngineeringGraph,
 )
 
+
 class FrozenConfidenceModel(BaseModel):
     model_config = ConfigDict(
         frozen=True,
@@ -75,7 +76,7 @@ class ConfidencePropagationRequest(
 
     edge_weights: tuple[
         ConfidenceEdgeWeight,
-        ...,
+        ...
     ] = ()
 
     @field_validator(
@@ -166,6 +167,35 @@ class ConfidencePropagationRequest(
 
         return self
 
+    @model_validator(mode="after")
+    def validate_edge_weight_targets(
+        self,
+    ) -> "ConfidencePropagationRequest":
+        graph_edges = {
+            (
+                edge.source_node_id,
+                edge.target_node_id,
+                edge.relation,
+            )
+            for edge in self.graph.edges
+        }
+
+        for item in self.edge_weights:
+            identity = (
+                item.source_node,
+                item.target_node,
+                item.relation,
+            )
+
+            if identity not in graph_edges:
+                raise ValueError(
+                    "edge weight must reference an "
+                    "existing graph edge with matching "
+                    "source, target, and relation."
+                )
+
+        return self
+
 
 class ConfidenceContribution(
     FrozenConfidenceModel,
@@ -209,5 +239,6 @@ class ConfidencePropagationResult(
 
     contributions: tuple[
         ConfidenceContribution,
-        ...,
+        ...
     ] = ()
+    

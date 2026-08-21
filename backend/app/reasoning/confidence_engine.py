@@ -96,6 +96,11 @@ class ConfidencePropagationEngine:
         processed_items = 0
         skipped_items = 0
 
+        edge_weight_sources: dict[
+            tuple[str, str, str],
+            str,
+        ] = {}
+
         for edge in graph.edges:
             if edge.relation not in {
                 "supports",
@@ -152,14 +157,27 @@ class ConfidencePropagationEngine:
                 incoming_confidence
             )
 
-            edge_weight = edge_weights.get(
-                (
-                    edge.source_node_id,
-                    edge.target_node_id,
-                    edge.relation,
-                ),
-                1.0,
+            edge_identity = (
+                edge.source_node_id,
+                edge.target_node_id,
+                edge.relation,
             )
+
+            if edge_identity in edge_weights:
+                edge_weight = edge_weights[
+                    edge_identity
+                ]
+
+                edge_weight_sources[
+                    edge_identity
+                ] = "explicit_request"
+            else:
+                edge_weight = 1.0
+
+                edge_weight_sources[
+                    edge_identity
+                ] = "default_1.0"
+            
             attenuation = 1.0
 
             propagated_confidence = (
@@ -261,6 +279,10 @@ class ConfidencePropagationEngine:
                 warnings=tuple(
                     warnings
                 ),
+                metadata={
+                    "edge_weight_sources":
+                        edge_weight_sources,
+                },
             ),
             execution_summary=(
                 "Confidence propagation completed "

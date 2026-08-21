@@ -979,3 +979,79 @@ def test_confidence_propagation_weights_contradiction():
     assert result.payload.propagated_scores[
         "hypothesis:0"
     ] == pytest.approx(-0.20)
+
+
+def test_confidence_propagation_reports_weight_provenance():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+            edge_weights=(
+                ConfidenceEdgeWeight(
+                    source_node="evidence:0",
+                    target_node="hypothesis:0",
+                    relation="supports",
+                    weight=0.50,
+                ),
+            ),
+        )
+    )
+
+    assert (
+        result.diagnostics.metadata[
+            "edge_weight_sources"
+        ]
+        == {
+            (
+                "evidence:0",
+                "hypothesis:0",
+                "supports",
+            ): "explicit_request"
+        }
+    )
+
+
+def test_confidence_propagation_reports_default_weight_provenance():
+    graph = build_graph(
+        edges=(
+            GraphEdge(
+                source_node_id="evidence:0",
+                target_node_id="hypothesis:0",
+                relation="supports",
+            ),
+        )
+    )
+
+    result = ConfidencePropagationEngine().execute(
+        build_context(
+            graph=graph,
+            scores={
+                "evidence:0": 0.80,
+            },
+        )
+    )
+
+    assert (
+        result.diagnostics.metadata[
+            "edge_weight_sources"
+        ]
+        == {
+            (
+                "evidence:0",
+                "hypothesis:0",
+                "supports",
+            ): "default_1.0"
+        }
+    )
