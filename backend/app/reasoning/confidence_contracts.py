@@ -196,6 +196,28 @@ class ConfidencePropagationRequest(
 
         return self
 
+    @model_validator(mode="after")
+    def validate_confidence_score_nodes(
+        self,
+    ) -> "ConfidencePropagationRequest":
+        graph_node_ids = {
+            node.node_id
+            for node in self.graph.nodes
+        }
+
+        unknown_score_nodes = (
+            set(self.confidence_scores)
+            - graph_node_ids
+        )
+
+        if unknown_score_nodes:
+            raise ValueError(
+                "confidence scores must reference "
+                "existing graph nodes."
+            )
+
+        return self
+
 
 class ConfidenceContribution(
     FrozenConfidenceModel,

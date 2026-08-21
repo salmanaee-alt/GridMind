@@ -101,6 +101,12 @@ def test_confidence_request_is_immutable():
     request = ConfidencePropagationRequest(
         graph=EngineeringGraph(
             graph_id="confidence-request",
+            nodes=(
+                GraphNode(
+                    node_id="evidence:0",
+                    node_type="evidence",
+                ),
+            ),
         ),
         confidence_scores={
             "evidence:0": 0.8,
