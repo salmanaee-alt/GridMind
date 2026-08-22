@@ -108,6 +108,10 @@ from app.reasoning.evidence_confidence_boundary import (
 from app.reasoning.confidence_seed_eligibility import (
     assess_seed_eligibility,
 )
+
+from app.reasoning.confidence_calibration_policy import (
+    ConfidenceCalibrationPolicy,
+)
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -919,6 +923,21 @@ class TransformerEngineer:
             "evidence_relationship_validation"
         ] = (
             evidence_relationships_validation.model_dump()
+        )
+
+        confidence_calibration_policy = (
+            ConfidenceCalibrationPolicy(
+                policy_id="CONF-CAL-DEFAULT",
+                version="0.1",
+            )
+        )
+
+        session.metadata[
+            "confidence_calibration_policy"
+        ] = (
+            confidence_calibration_policy.model_dump(
+                mode="json"
+            )
         )
 
         confidence_seed_scores: dict[

@@ -167,3 +167,78 @@ def test_seed_eligibility_does_not_activate_seeds():
         ]
         == {}
     )
+
+
+def test_transformer_exposes_confidence_calibration_policy_audit():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    assert response.status_code == 200
+
+    metadata = response.json()["session"]["metadata"]
+
+    assert (
+        "confidence_calibration_policy"
+        in metadata
+    )
+
+
+def test_confidence_calibration_policy_audit_is_not_approved():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    policy = response.json()["session"]["metadata"][
+        "confidence_calibration_policy"
+    ]
+
+    assert policy["approved"] is False
+    assert (
+        policy["permits_probability_output"]
+        is False
+    )
+    assert (
+        policy["permits_propagation_seed"]
+        is False
+    )
+
+
+def test_confidence_calibration_policy_preserves_authority_boundary():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    policy = response.json()["session"]["metadata"][
+        "confidence_calibration_policy"
+    ]
+
+    assert policy["shadow_only"] is True
+    assert policy["affects_reasoning"] is False
+    assert policy["affects_decision"] is False
+
+
+def test_unapproved_policy_does_not_activate_propagation_seeds():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    metadata = response.json()["session"]["metadata"]
+
+    assert (
+        metadata["confidence_calibration_policy"][
+            "permits_propagation_seed"
+        ]
+        is False
+    )
+
+    assert (
+        metadata["confidence_propagation"][
+            "input_confidence_scores"
+        ]
+        == {}
+    )
