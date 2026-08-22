@@ -104,6 +104,10 @@ from app.reasoning.confidence_evidence_adapter import (
 from app.reasoning.evidence_confidence_boundary import (
     assess_evidence_confidence,
 )
+
+from app.reasoning.confidence_seed_eligibility import (
+    assess_seed_eligibility,
+)
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -847,6 +851,30 @@ class TransformerEngineer:
             )
             for item in engineering_evidence_objects
         ]
+
+        confidence_seed_eligibility_assessments = [
+            assess_seed_eligibility(
+                evidence_id=item.evidence_id,
+                validity=item.validity,
+                is_calibrated_probability=False,
+            )
+            for item in engineering_evidence_objects
+        ]
+
+        session.metadata[
+            "confidence_seed_eligibility"
+        ] = {
+            "shadow_only": True,
+            "affects_reasoning": False,
+            "affects_decision": False,
+            "assessments": [
+                assessment.model_dump(
+                    mode="json"
+                )
+                for assessment
+                in confidence_seed_eligibility_assessments
+            ],
+        }
 
         session.metadata[
             "evidence_confidence_audit"

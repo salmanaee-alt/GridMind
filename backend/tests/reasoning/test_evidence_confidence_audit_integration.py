@@ -115,3 +115,55 @@ def test_evidence_confidence_audit_does_not_feed_propagation_seeds():
         ]
         == {}
     )
+
+
+def test_transformer_exposes_seed_eligibility_audit():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    assert response.status_code == 200
+
+    metadata = response.json()["session"]["metadata"]
+
+    assert "confidence_seed_eligibility" in metadata
+
+
+def test_seed_eligibility_audit_preserves_authority_boundary():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    audit = response.json()["session"]["metadata"][
+        "confidence_seed_eligibility"
+    ]
+
+    assert audit["shadow_only"] is True
+    assert audit["affects_reasoning"] is False
+    assert audit["affects_decision"] is False
+
+
+def test_seed_eligibility_does_not_activate_seeds():
+    response = client.post(
+        "/transformer/differential-trip",
+        json=build_request(),
+    )
+
+    metadata = response.json()["session"]["metadata"]
+
+    for assessment in metadata[
+        "confidence_seed_eligibility"
+    ]["assessments"]:
+        assert (
+            assessment["usable_as_propagation_seed"]
+            is False
+        )
+
+    assert (
+        metadata["confidence_propagation"][
+            "input_confidence_scores"
+        ]
+        == {}
+    )
