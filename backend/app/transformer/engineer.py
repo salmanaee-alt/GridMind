@@ -99,7 +99,11 @@ from app.reasoning.confidence_engine import (
 
 from app.reasoning.confidence_evidence_adapter import (
     build_confidence_request_from_evidence_graph,
-) 
+)
+
+from app.reasoning.evidence_confidence_boundary import (
+    assess_evidence_confidence,
+)
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
 from app.knowledge.bootstrap import build_default_registry
@@ -835,6 +839,29 @@ class TransformerEngineer:
             EngineeringEvidence.model_validate(item)
             for item in session.evidence
         ]
+
+        evidence_confidence_assessments = [
+            assess_evidence_confidence(
+                evidence_id=item.evidence_id,
+                confidence=item.confidence,
+            )
+            for item in engineering_evidence_objects
+        ]
+
+        session.metadata[
+            "evidence_confidence_audit"
+        ] = {
+            "shadow_only": True,
+            "affects_reasoning": False,
+            "affects_decision": False,
+            "assessments": [
+                assessment.model_dump(
+                    mode="json"
+                )
+                for assessment
+                in evidence_confidence_assessments
+            ],
+        }
 
         evidence_graph = build_evidence_graph(
             engineering_evidence_objects
