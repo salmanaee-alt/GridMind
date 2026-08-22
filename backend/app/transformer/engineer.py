@@ -87,6 +87,18 @@ from app.brain.evidence_graph_validation import (
 )
 from app.brain.evidence_relationship_validation import (
     validate_evidence_relationships,
+)
+from app.foundation.context import (
+    ExecutionContext,
+)
+
+from app.reasoning.confidence_engine import (
+    CONFIDENCE_REQUEST_RESOURCE_KEY,
+    ConfidencePropagationEngine,
+)
+
+from app.reasoning.confidence_evidence_adapter import (
+    build_confidence_request_from_evidence_graph,
 ) 
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
@@ -853,6 +865,48 @@ class TransformerEngineer:
         ] = (
             evidence_relationships_validation.model_dump()
         )
+
+        confidence_seed_scores: dict[
+            str,
+            float,
+        ] = {}
+
+        confidence_request = (
+            build_confidence_request_from_evidence_graph(
+                graph=evidence_graph,
+                confidence_scores=(
+                    confidence_seed_scores
+                ),
+            )
+        )
+
+        confidence_result = (
+            ConfidencePropagationEngine().execute(
+                ExecutionContext(
+                    resources={
+                        CONFIDENCE_REQUEST_RESOURCE_KEY:
+                            confidence_request,
+                    }
+                )
+            )
+        )
+
+        session.metadata[
+            "confidence_propagation"
+        ] = {
+            "shadow_only":
+                confidence_result.shadow_only,
+            "affects_reasoning":
+                confidence_result.affects_reasoning,
+            "affects_decision":
+                confidence_result.affects_decision,
+            "input_confidence_scores":
+                confidence_seed_scores,
+            "result":
+                confidence_result.model_dump(
+                    mode="json"
+                ),
+        }
         
         brain = EngineeringBrain()
         completed_session = brain.run(session)
