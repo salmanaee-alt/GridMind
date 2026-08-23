@@ -225,37 +225,6 @@ class HarmonicCurrentMeasurement(BaseModel):
     affects_decision: bool = False
 
 
-class HarmonicCurrentMeasurement(BaseModel):
-    """
-    Harmonic current magnitudes for one measured phase.
-
-    Values represent current magnitudes only.
-    No inrush, overexcitation, restraint, or trip
-    conclusion is inferred by this contract.
-
-    Shadow-only physics data.
-    """
-
-    model_config = ConfigDict(
-        frozen=True,
-        extra="forbid",
-    )
-
-    fundamental_a: float = Field(ge=0.0)
-
-    second_harmonic_a: float = Field(
-        default=0.0,
-        ge=0.0,
-    )
-
-    fifth_harmonic_a: float = Field(
-        default=0.0,
-        ge=0.0,
-    )
-
-    affects_decision: bool = False
-
-
 class HarmonicRestraintSettings(BaseModel):
     model_config = ConfigDict(
         frozen=True,

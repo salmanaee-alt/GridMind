@@ -13,12 +13,6 @@ from app.transformer.physics_contracts import (
     HarmonicPhysicsValidity,
 )
 
-from app.transformer.physics_contracts import (
-    CTRatio,
-    ThreePhaseCurrentMeasurement,
-    TransformerDifferentialPhysicsContext,
-)
-
 
 def normalize_current_to_ct_secondary(
     *,
