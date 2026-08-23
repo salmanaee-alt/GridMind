@@ -4,6 +4,7 @@ from app.transformer.physics_contracts import (
     DifferentialCurrentResult,
     HarmonicPhysicsValidity,
     HarmonicRestraintEvaluation,
+    DifferentialCharacteristicEvaluation,
 )
 from app.transformer.physics_observation import (
     PhysicsObservation,
@@ -112,4 +113,47 @@ def build_harmonic_restraint_observation(
                 "fifth_harmonic",
             ],
         }
+    )
+
+
+def build_differential_characteristic_observation(
+    *,
+    result: DifferentialCharacteristicEvaluation,
+) -> PhysicsObservation:
+    return PhysicsObservation(
+        observation_type="differential_characteristic",
+        validity_status="valid",
+        data={
+            "phase_a_operate":
+                result.phase_a_operate,
+            "phase_b_operate":
+                result.phase_b_operate,
+            "phase_c_operate":
+                result.phase_c_operate,
+            "phase_a_threshold_a":
+                result.phase_a_threshold_a,
+            "phase_b_threshold_a":
+                result.phase_b_threshold_a,
+            "phase_c_threshold_a":
+                result.phase_c_threshold_a,
+            "affects_decision":
+                result.affects_decision,
+        },
+        provenance={
+            "calculation":
+                "differential_characteristic",
+            "algorithm_version":
+                "v0.40",
+            "formulae": {
+                "operate_threshold":
+                    "pickup + slope * restraint",
+                "operate":
+                    "Idiff >= operate_threshold",
+            },
+            "inputs": [
+                "differential_current",
+                "pickup_a",
+                "slope",
+            ],
+        },
     )

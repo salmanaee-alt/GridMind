@@ -8,6 +8,7 @@ from app.transformer.physics_contracts import (
     HarmonicCurrentMeasurement,
     TransformerDifferentialPhysicsContext,
     TransformerElectricalMeasurements,
+    DifferentialCharacteristicSettings,
 )
 
 DGAStatus = Literal[
@@ -215,6 +216,17 @@ class TransformerDifferentialTripRequest(BaseModel):
         description=(
             "Optional transformer differential physics context. "
             "Shadow-only and does not affect engineering decisions."
+        ),
+    )
+
+    differential_characteristic_settings: (
+    DifferentialCharacteristicSettings | None
+    ) = Field(
+
+        default=None,
+        description=(
+            "Optional relay differential characteristic "
+            "settings for shadow-only physics evaluation."
         ),
     )
 

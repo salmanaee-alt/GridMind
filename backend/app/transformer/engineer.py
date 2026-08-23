@@ -53,6 +53,7 @@ from app.capabilities.traceable_context.capability_manifest import (
 from app.transformer.physics_observation_builder import (
     build_differential_current_observation,
     build_harmonic_restraint_observation,
+    build_differential_characteristic_observation,
 )
 
 from app.transformer.physics import (
@@ -61,6 +62,7 @@ from app.transformer.physics import (
     evaluate_harmonic_restraint,
     normalize_current_to_ct_secondary,
     refer_current_to_voltage_side,
+    evaluate_differential_characteristic,
 )
 
 from app.transformer.physics_contracts import (
@@ -760,6 +762,30 @@ class TransformerEngineer:
                         result=differential_result
                     )
                 )
+
+                if (
+                    differential_result is not None
+                    and request.differential_characteristic_settings
+                    is not None
+                ):
+                    characteristic_result = (
+                        evaluate_differential_characteristic(
+                            currents=differential_result,
+                            settings=(
+                                request.differential_characteristic_settings
+                            ),
+                        )
+                    )
+
+                    characteristic_observation = (
+                        build_differential_characteristic_observation(
+                            result=characteristic_result,
+                        )
+                    )
+
+                    session.add_observation(
+                        characteristic_observation.model_dump()
+                    )
 
                 session.add_observation(
                     differential_observation.model_dump()

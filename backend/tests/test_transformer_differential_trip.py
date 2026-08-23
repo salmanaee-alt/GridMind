@@ -2060,4 +2060,94 @@ def test_transformer_api_exposes_evidence_relationship_validation():
     assert validation["duplicate_relationships"] == []
     assert validation["affects_reasoning"] is False
     assert validation["affects_decision"] is False
-    
+
+
+def test_transformer_api_exposes_differential_characteristic_observation():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": (
+            "Transformer tripped by differential relay"
+        ),
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+        ],
+        "missing_data": [],
+        "physics_measurements": {
+            "hv_currents": {
+                "phase_a": 100.0,
+                "phase_b": 100.0,
+                "phase_c": 100.0,
+            },
+            "lv_currents": {
+                "phase_a": 1000.0,
+                "phase_b": 1000.0,
+                "phase_c": 1000.0,
+            },
+            "hv_ct_ratio": {
+                "primary_a": 200.0,
+                "secondary_a": 1.0,
+            },
+            "lv_ct_ratio": {
+                "primary_a": 2000.0,
+                "secondary_a": 1.0,
+            },
+            "hv_nominal_voltage_kv": 230.0,
+            "lv_nominal_voltage_kv": 13.8,
+        },
+        "physics_context": {
+            "vector_group": "Dyn11",
+            "vector_group_compensation_applied": True,
+        },
+        "differential_characteristic_settings": {
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    observations = response.json()["session"]["observations"]
+
+    characteristic = next(
+        item
+        for item in observations
+        if item.get("observation_type")
+        == "differential_characteristic"
+    )
+
+    assert characteristic["validity_status"] == "valid"
+    assert (
+        characteristic["data"]["affects_decision"]
+        is False
+    )
+
+
+def test_differential_characteristic_not_emitted_without_settings():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    observations = response.json()["session"]["observations"]
+
+    assert not any(
+        item.get("observation_type")
+        == "differential_characteristic"
+        for item in observations
+    )

@@ -54,4 +54,39 @@ def test_transformer_request_accepts_optional_physics_inputs():
         request.physics_context.affects_decision
         is False
     )
-    
+
+
+def test_request_accepts_differential_characteristic_settings():
+    request = TransformerDifferentialTripRequest(
+        asset_id="T1",
+        event_description=(
+            "Transformer differential trip"
+        ),
+        differential_characteristic_settings={
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+    )
+
+    settings = (
+        request.differential_characteristic_settings
+    )
+
+    assert settings is not None
+    assert settings.pickup_a == 0.30
+    assert settings.slope == 0.25
+    assert settings.affects_decision is False
+
+
+def test_differential_characteristic_settings_are_optional():
+    request = TransformerDifferentialTripRequest(
+        asset_id="T1",
+        event_description=(
+            "Transformer differential trip"
+        ),
+    )
+
+    assert (
+        request.differential_characteristic_settings
+        is None
+    )
