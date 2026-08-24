@@ -10,6 +10,10 @@ from app.transformer.physics_observation import (
     PhysicsObservation,
 )
 
+from app.transformer.ct_saturation_evaluator import (
+    CTSaturationEvaluation,
+)
+
 
 def build_differential_current_observation(
     *,
@@ -154,6 +158,38 @@ def build_differential_characteristic_observation(
                 "differential_current",
                 "pickup_a",
                 "slope",
+            ],
+        },
+    )
+
+
+def build_ct_saturation_observation(
+    *,
+    result: CTSaturationEvaluation,
+) -> PhysicsObservation:
+    return PhysicsObservation(
+        observation_type="ct_saturation_evaluation",
+        validity_status="valid",
+        data={
+            "status": result.status,
+            "confirmed": result.confirmed,
+            "shadow_only": result.shadow_only,
+            "affects_reasoning": (
+                result.affects_reasoning
+            ),
+            "affects_decision": (
+                result.affects_decision
+            ),
+        },
+        provenance={
+            "calculation":
+                "ct_saturation_evaluation",
+            "algorithm_version":
+                "v0.41",
+            "inputs": [
+                "waveform_asymmetry_detected",
+                "secondary_current_distortion_detected",
+                "high_through_fault_current_detected",
             ],
         },
     )

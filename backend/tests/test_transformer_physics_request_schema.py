@@ -90,3 +90,39 @@ def test_differential_characteristic_settings_are_optional():
         request.differential_characteristic_settings
         is None
     )
+
+
+def test_request_accepts_ct_saturation_indicators():
+    request = TransformerDifferentialTripRequest(
+        asset_id="T1",
+        event_description=(
+            "Transformer differential trip"
+        ),
+        ct_saturation_indicators={
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    )
+
+    indicators = request.ct_saturation_indicators
+
+    assert indicators is not None
+    assert (
+        indicators.waveform_asymmetry_detected
+        is True
+    )
+    assert indicators.shadow_only is True
+    assert indicators.affects_reasoning is False
+    assert indicators.affects_decision is False
+
+
+def test_ct_saturation_indicators_are_optional():
+    request = TransformerDifferentialTripRequest(
+        asset_id="T1",
+        event_description=(
+            "Transformer differential trip"
+        ),
+    )
+
+    assert request.ct_saturation_indicators is None

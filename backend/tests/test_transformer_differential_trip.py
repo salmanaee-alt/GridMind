@@ -1026,6 +1026,37 @@ def test_transformer_breaker_tripped_supports_isolation_without_conflict():
     assert "failed to open" not in response_text
     assert "remained closed" not in response_text
 
+
+def test_physics_supported_ct_saturation_adds_support_without_raising_confidence():
+    evaluations = evaluate_differential_trip_hypotheses(
+        available_evidence=[],
+        missing_required_evidence=[],
+        relay_targets=[],
+        dga_status="not_available",
+        comtrade_summary="not_available",
+        buchholz_alarm=None,
+        comtrade_available=False,
+        dga_available=False,
+        oil_temperature_c=None,
+        load_percent=None,
+        physics_ct_saturation_status="supported",
+    )
+
+    external = next(
+        item
+        for item in evaluations
+        if item["hypothesis"]
+        == "External fault with CT saturation"
+    )
+
+    assert (
+        "Physics evaluation supports CT saturation."
+        in external["supporting_evidence"]
+    )
+
+    assert external["confidence"] == "low"
+
+
 def test_transformer_breaker_failure_becomes_global_safety_conflict():
     payload = {
         "asset_id": "T1",
@@ -2151,3 +2182,211 @@ def test_differential_characteristic_not_emitted_without_settings():
         == "differential_characteristic"
         for item in observations
     )
+
+
+def test_transformer_api_exposes_ct_saturation_observation():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    observations = response.json()[
+        "session"
+    ]["observations"]
+
+    observation = next(
+        item
+        for item in observations
+        if item.get("observation_type")
+        == "ct_saturation_evaluation"
+    )
+
+    assert observation["validity_status"] == "valid"
+    assert observation["data"]["status"] == "supported"
+    assert observation["data"]["shadow_only"] is True
+    assert (
+        observation["data"]["affects_reasoning"]
+        is False
+    )
+    assert (
+        observation["data"]["affects_decision"]
+        is False
+    )
+
+
+def test_ct_saturation_observation_not_emitted_without_indicators():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    observations = response.json()[
+        "session"
+    ]["observations"]
+
+    assert not any(
+        item.get("observation_type")
+        == "ct_saturation_evaluation"
+        for item in observations
+    )
+
+
+def test_ct_saturation_observation_is_exposed_as_engineering_evidence():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    evidence = response.json()["session"]["evidence"]
+
+    item = next(
+        evidence_item
+        for evidence_item in evidence
+        if evidence_item.get("evidence_id")
+        == "physics:ct_saturation_evaluation"
+    )
+
+    assert item["evidence_type"] == (
+        "ct_saturation_evaluation"
+    )
+    assert item["category"] == "physics"
+
+    assert item["value"]["status"] == "supported"
+    assert item["value"]["confirmed"] is False
+
+    assert item["affects_reasoning"] is False
+
+
+def test_ct_saturation_evidence_not_emitted_without_indicators():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    evidence = response.json()["session"]["evidence"]
+
+    assert not any(
+        item.get("evidence_id")
+        == "physics:ct_saturation_evaluation"
+        for item in evidence
+    )
+
+
+def test_ct_saturation_evidence_is_present_in_evidence_graph():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    graph = response.json()["session"][
+        "evidence_graph"
+    ]
+
+    node = next(
+        item
+        for item in graph["nodes"]
+        if item["evidence_id"]
+        == "physics:ct_saturation_evaluation"
+    )
+
+    assert node["evidence_type"] == (
+        "ct_saturation_evaluation"
+    )
+
+
+def test_api_ct_saturation_physics_support_reaches_external_hypothesis():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+        "comtrade_summary": "not_available",
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    hypotheses = response.json()["session"]["hypotheses"]
+
+    external = next(
+        item
+        for item in hypotheses
+        if item["hypothesis"]
+        == "External fault with CT saturation"
+    )
+
+    assert (
+        "Physics evaluation supports CT saturation."
+        in external["supporting_evidence"]
+    )
+
+    assert external["confidence"] == "low"

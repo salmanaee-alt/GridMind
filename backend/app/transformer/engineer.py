@@ -54,6 +54,8 @@ from app.transformer.physics_observation_builder import (
     build_differential_current_observation,
     build_harmonic_restraint_observation,
     build_differential_characteristic_observation,
+    build_ct_saturation_observation,
+
 )
 
 from app.transformer.physics import (
@@ -67,11 +69,6 @@ from app.transformer.physics import (
 
 from app.transformer.physics_contracts import (
     HarmonicRestraintSettings,
-)
-
-from app.transformer.physics_observation_builder import (
-    build_differential_current_observation,
-    build_harmonic_restraint_observation,
 )
 
 from app.brain.evidence_adapter import (
@@ -113,6 +110,10 @@ from app.reasoning.confidence_seed_eligibility import (
 
 from app.reasoning.confidence_calibration_policy import (
     ConfidenceCalibrationPolicy,
+)
+
+from app.transformer.ct_saturation_evaluator import (
+    evaluate_ct_saturation,
 )
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
@@ -190,22 +191,46 @@ class TransformerEngineer:
             for metadata in request.evidence_metadata
         ]
 
-        hypothesis_evaluations = evaluate_differential_trip_hypotheses(
-            available_evidence=available_evidence,
-            missing_required_evidence=missing_required_evidence,
-            buchholz_alarm=request.buchholz_alarm,
-            comtrade_available=request.comtrade_available,
-            dga_available=request.dga_available,
-            oil_temperature_c=request.oil_temperature_c,
-            load_percent=request.load_percent,
-            relay_targets=request.relay_targets,
-            dga_status=request.dga_status,
-            comtrade_summary=request.comtrade_summary,
-        hv_breaker_status=request.hv_breaker_status,
-        lv_breaker_status=request.lv_breaker_status,        )
+        ct_saturation_result = None
 
-        session = EngineeringSession(
-            title=knowledge["description"],
+        if request.ct_saturation_indicators is not None:
+            ct_saturation_result = evaluate_ct_saturation(
+                request.ct_saturation_indicators
+            )
+
+        hypothesis_evaluations = (
+            evaluate_differential_trip_hypotheses(
+                available_evidence=available_evidence,
+                missing_required_evidence=(
+                    missing_required_evidence
+                ),
+                buchholz_alarm=request.buchholz_alarm,
+                comtrade_available=(
+                    request.comtrade_available
+                ),
+                dga_available=request.dga_available,
+                oil_temperature_c=(
+                    request.oil_temperature_c
+                ),
+                load_percent=request.load_percent,
+                relay_targets=request.relay_targets,
+                dga_status=request.dga_status,
+                comtrade_summary=request.comtrade_summary,
+                hv_breaker_status=(
+                    request.hv_breaker_status
+                ),
+                lv_breaker_status=(
+                    request.lv_breaker_status
+                ),
+                physics_ct_saturation_status=(
+                    ct_saturation_result.status
+                    if ct_saturation_result is not None
+                    else None
+                ),
+            )
+        )
+
+        session = EngineeringSession(            title=knowledge["description"],
             metadata={
                 "engineering_role": "Transformer Engineer",
                 "event_type": "differential_trip",
@@ -835,6 +860,31 @@ class TransformerEngineer:
 
             session.add_evidence(
                 harmonic_evidence.model_dump()
+            )
+
+        if request.ct_saturation_indicators is not None:
+            ct_saturation_result = evaluate_ct_saturation(
+                request.ct_saturation_indicators
+            )
+
+            ct_saturation_observation = (
+                build_ct_saturation_observation(
+                    result=ct_saturation_result,
+                )
+            )
+
+            session.add_observation(
+                ct_saturation_observation.model_dump()
+            )
+
+            ct_saturation_evidence = (
+                physics_observation_to_evidence(
+                    ct_saturation_observation
+                )
+            )
+
+            session.add_evidence(
+                ct_saturation_evidence.model_dump()
             )
 
         for evaluation in hypothesis_evaluations:

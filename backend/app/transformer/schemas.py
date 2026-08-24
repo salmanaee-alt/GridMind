@@ -11,6 +11,10 @@ from app.transformer.physics_contracts import (
     DifferentialCharacteristicSettings,
 )
 
+from app.transformer.ct_saturation_contracts import (
+    CTSaturationIndicators,
+)
+
 DGAStatus = Literal[
     "not_available",
     "normal",
@@ -227,6 +231,16 @@ class TransformerDifferentialTripRequest(BaseModel):
         description=(
             "Optional relay differential characteristic "
             "settings for shadow-only physics evaluation."
+        ),
+    )
+
+    ct_saturation_indicators: (
+        CTSaturationIndicators | None
+    ) = Field(
+        default=None,
+        description=(
+            "Optional CT saturation indicators for "
+            "shadow-only engineering evaluation."
         ),
     )
 
