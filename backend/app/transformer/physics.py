@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from app.transformer.physics_contracts import (
     CTRatio,
     DifferentialCurrentResult,
@@ -11,6 +13,7 @@ from app.transformer.physics_contracts import (
     HarmonicRestraintEvaluation,
     HarmonicRestraintSettings,
     HarmonicPhysicsValidity,
+    DifferentialOperatingRegionSummary,
 )
 
 
@@ -197,6 +200,32 @@ def evaluate_differential_characteristic(
         phase_b_threshold_a=phase_b_threshold,
         phase_c_threshold_a=phase_c_threshold,
         affects_decision=False,
+    )
+
+
+def summarize_differential_operating_region(
+    evaluation: DifferentialCharacteristicEvaluation,
+) -> DifferentialOperatingRegionSummary:
+    operating_phases: list[
+        Literal["A", "B", "C"]
+    ] = []
+
+    if evaluation.phase_a_operate:
+        operating_phases.append("A")
+
+    if evaluation.phase_b_operate:
+        operating_phases.append("B")
+
+    if evaluation.phase_c_operate:
+        operating_phases.append("C")
+
+    return DifferentialOperatingRegionSummary(
+        any_phase_operate=bool(
+            operating_phases
+        ),
+        operating_phases=tuple(
+            operating_phases
+        ),
     )
 
 

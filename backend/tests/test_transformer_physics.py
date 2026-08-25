@@ -9,7 +9,8 @@ from app.transformer.physics import (
     refer_current_to_voltage_side,
     calculate_harmonic_ratios,
     evaluate_harmonic_restraint,
-    evaluate_harmonic_physics_validity
+    evaluate_harmonic_physics_validity,
+    summarize_differential_operating_region
 )
 
 from app.transformer.physics_contracts import (
@@ -19,6 +20,7 @@ from app.transformer.physics_contracts import (
     TransformerDifferentialPhysicsContext,
     HarmonicCurrentMeasurement,
     HarmonicRestraintSettings,
+    DifferentialCharacteristicEvaluation,
 )
 
 
@@ -294,7 +296,71 @@ def test_differential_characteristic_restrains_below_threshold():
     assert result.phase_a_operate is False
     assert result.phase_b_operate is False
     assert result.phase_c_operate is False
-    
+
+
+def test_differential_operating_region_reports_operating_phases():
+    context = TransformerDifferentialPhysicsContext(
+        vector_group="Dyn11",
+        vector_group_compensation_applied=True,
+    )
+
+    hv = ThreePhaseCurrentMeasurement(
+        phase_a=100.0,
+        phase_b=100.0,
+        phase_c=100.0,
+    )
+
+    lv = ThreePhaseCurrentMeasurement(
+        phase_a=70.0,
+        phase_b=100.0,
+        phase_c=100.0,
+    )
+
+    currents = calculate_differential_and_restraint_currents(
+        hv_currents=hv,
+        lv_currents_referred_to_hv=lv,
+        context=context,
+    )
+
+    characteristic = evaluate_differential_characteristic(
+        currents=currents,
+        settings=DifferentialCharacteristicSettings(
+            pickup_a=5.0,
+            slope=0.20,
+        ),
+    )
+
+    summary = summarize_differential_operating_region(
+        characteristic
+    )
+
+    assert summary.any_phase_operate is True
+    assert summary.operating_phases == ("A",)
+    assert summary.shadow_only is True
+    assert summary.affects_reasoning is False
+    assert summary.affects_decision is False
+
+
+def test_differential_operating_region_reports_no_operation():
+    characteristic = DifferentialCharacteristicEvaluation(
+        phase_a_operate=False,
+        phase_b_operate=False,
+        phase_c_operate=False,
+        phase_a_threshold_a=10.0,
+        phase_b_threshold_a=10.0,
+        phase_c_threshold_a=10.0,
+    )
+
+    summary = summarize_differential_operating_region(
+        characteristic
+    )
+
+    assert summary.any_phase_operate is False
+    assert summary.operating_phases == ()
+    assert summary.shadow_only is True
+    assert summary.affects_reasoning is False
+    assert summary.affects_decision is False
+
 
 def test_harmonic_ratios_are_calculated():
     measurement = HarmonicCurrentMeasurement(

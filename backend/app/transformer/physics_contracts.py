@@ -194,6 +194,24 @@ class DifferentialCharacteristicEvaluation(BaseModel):
     affects_decision: bool = False
 
 
+class DifferentialOperatingRegionSummary(BaseModel):
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+    )
+
+    any_phase_operate: bool
+
+    operating_phases: tuple[
+        Literal["A", "B", "C"],
+        ...
+    ] = ()
+
+    shadow_only: bool = True
+    affects_reasoning: bool = False
+    affects_decision: bool = False
+
+
 class HarmonicCurrentMeasurement(BaseModel):
     """
     Harmonic current magnitudes for one measured phase.

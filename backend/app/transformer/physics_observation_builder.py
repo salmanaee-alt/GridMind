@@ -14,6 +14,10 @@ from app.transformer.ct_saturation_evaluator import (
     CTSaturationEvaluation,
 )
 
+from app.transformer.external_fault_discrimination import (
+    ExternalFaultDiscriminationEvaluation,
+)
+
 
 def build_differential_current_observation(
     *,
@@ -190,6 +194,39 @@ def build_ct_saturation_observation(
                 "waveform_asymmetry_detected",
                 "secondary_current_distortion_detected",
                 "high_through_fault_current_detected",
+            ],
+        },
+    )
+
+
+def build_external_fault_discrimination_observation(
+    *,
+    result: ExternalFaultDiscriminationEvaluation,
+) -> PhysicsObservation:
+    return PhysicsObservation(
+        observation_type=(
+            "external_fault_discrimination"
+        ),
+        validity_status="valid",
+        data={
+            "status": result.status,
+            "confirmed": result.confirmed,
+            "shadow_only": result.shadow_only,
+            "affects_reasoning": (
+                result.affects_reasoning
+            ),
+            "affects_decision": (
+                result.affects_decision
+            ),
+        },
+        provenance={
+            "calculation":
+                "external_fault_discrimination",
+            "algorithm_version":
+                "v0.42",
+            "inputs": [
+                "differential_operating_region",
+                "ct_saturation_status",
             ],
         },
     )

@@ -55,7 +55,7 @@ from app.transformer.physics_observation_builder import (
     build_harmonic_restraint_observation,
     build_differential_characteristic_observation,
     build_ct_saturation_observation,
-
+    build_external_fault_discrimination_observation,
 )
 
 from app.transformer.physics import (
@@ -64,6 +64,7 @@ from app.transformer.physics import (
     evaluate_harmonic_restraint,
     normalize_current_to_ct_secondary,
     refer_current_to_voltage_side,
+    summarize_differential_operating_region,
     evaluate_differential_characteristic,
 )
 
@@ -114,6 +115,10 @@ from app.reasoning.confidence_calibration_policy import (
 
 from app.transformer.ct_saturation_evaluator import (
     evaluate_ct_saturation,
+)
+
+from app.transformer.external_fault_discrimination import (
+    evaluate_external_fault_discrimination,
 )
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
@@ -742,6 +747,8 @@ class TransformerEngineer:
             "source": "Transformer Knowledge v0.1",
         })
 
+        operating_region_summary = None
+
         if (
             request.physics_measurements is not None
             and request.physics_context is not None
@@ -802,6 +809,12 @@ class TransformerEngineer:
                         )
                     )
 
+                    operating_region_summary = (
+                        summarize_differential_operating_region(
+                            characteristic_result
+                        )
+                    )
+
                     characteristic_observation = (
                         build_differential_characteristic_observation(
                             result=characteristic_result,
@@ -825,6 +838,31 @@ class TransformerEngineer:
                 session.add_evidence(
                     differential_evidence.model_dump()
                 )
+
+        if (
+            operating_region_summary is not None
+            and ct_saturation_result is not None
+        ):
+            external_fault_result = (
+                evaluate_external_fault_discrimination(
+                    operating_region=(
+                        operating_region_summary
+                    ),
+                    ct_saturation_status=(
+                        ct_saturation_result.status
+                    ),
+                )
+            )
+
+            external_fault_observation = (
+                build_external_fault_discrimination_observation(
+                    result=external_fault_result,
+                )
+            )
+
+            session.add_observation(
+                external_fault_observation.model_dump()
+            )
 
         if request.harmonic_measurement is not None:
             harmonic_validity = (
@@ -862,11 +900,8 @@ class TransformerEngineer:
                 harmonic_evidence.model_dump()
             )
 
-        if request.ct_saturation_indicators is not None:
-            ct_saturation_result = evaluate_ct_saturation(
-                request.ct_saturation_indicators
-            )
-
+        if ct_saturation_result is not None:
+            
             ct_saturation_observation = (
                 build_ct_saturation_observation(
                     result=ct_saturation_result,

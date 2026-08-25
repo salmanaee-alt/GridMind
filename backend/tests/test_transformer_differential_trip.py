@@ -2390,3 +2390,115 @@ def test_api_ct_saturation_physics_support_reaches_external_hypothesis():
     )
 
     assert external["confidence"] == "low"
+
+
+def test_api_exposes_external_fault_discrimination_observation():
+    payload = {
+        "asset_id": "T1",
+        "voltage_level": "230/13.8 kV",
+        "event_description": (
+            "Transformer tripped by differential relay"
+        ),
+        "available_data": [
+            "Relay event report",
+            "COMTRADE waveform",
+        ],
+        "missing_data": [],
+        "physics_measurements": {
+            "hv_currents": {
+                "phase_a": 100.0,
+                "phase_b": 100.0,
+                "phase_c": 100.0,
+            },
+            "lv_currents": {
+                "phase_a": 1000.0,
+                "phase_b": 1000.0,
+                "phase_c": 1000.0,
+            },
+            "hv_ct_ratio": {
+                "primary_a": 200.0,
+                "secondary_a": 1.0,
+            },
+            "lv_ct_ratio": {
+                "primary_a": 2000.0,
+                "secondary_a": 1.0,
+            },
+            "hv_nominal_voltage_kv": 230.0,
+            "lv_nominal_voltage_kv": 13.8,
+        },
+        "physics_context": {
+            "vector_group": "Dyn11",
+            "vector_group_compensation_applied": True,
+        },
+        "differential_characteristic_settings": {
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    observations = response.json()[
+        "session"
+    ]["observations"]
+
+    observation = next(
+        item
+        for item in observations
+        if item.get("observation_type")
+        == "external_fault_discrimination"
+    )
+
+    assert observation["validity_status"] == "valid"
+    assert observation["data"]["status"] == "supported"
+    assert observation["data"]["confirmed"] is False
+    assert observation["data"]["shadow_only"] is True
+    assert (
+        observation["data"]["affects_reasoning"]
+        is False
+    )
+    assert (
+        observation["data"]["affects_decision"]
+        is False
+    )
+
+
+def test_external_fault_discrimination_not_emitted_without_operating_region():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    observations = response.json()[
+        "session"
+    ]["observations"]
+
+    assert not any(
+        item.get("observation_type")
+        == "external_fault_discrimination"
+        for item in observations
+    )
