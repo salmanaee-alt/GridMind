@@ -2502,3 +2502,130 @@ def test_external_fault_discrimination_not_emitted_without_operating_region():
         == "external_fault_discrimination"
         for item in observations
     )
+
+
+def test_external_fault_discrimination_is_exposed_as_engineering_evidence():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "physics_measurements": {
+            "hv_currents": {
+                "phase_a": 100.0,
+                "phase_b": 100.0,
+                "phase_c": 100.0,
+            },
+            "lv_currents": {
+                "phase_a": 1000.0,
+                "phase_b": 1000.0,
+                "phase_c": 1000.0,
+            },
+            "hv_ct_ratio": {
+                "primary_a": 200.0,
+                "secondary_a": 1.0,
+            },
+            "lv_ct_ratio": {
+                "primary_a": 2000.0,
+                "secondary_a": 1.0,
+            },
+            "hv_nominal_voltage_kv": 230.0,
+            "lv_nominal_voltage_kv": 13.8,
+        },
+        "physics_context": {
+            "vector_group": "Dyn11",
+            "vector_group_compensation_applied": True,
+        },
+        "differential_characteristic_settings": {
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    evidence = response.json()["session"]["evidence"]
+
+    item = next(
+        entry
+        for entry in evidence
+        if entry.get("evidence_id")
+        == "physics:external_fault_discrimination"
+    )
+
+    assert item["category"] == "physics"
+    assert item["value"]["status"] == "supported"
+    assert item["value"]["confirmed"] is False
+    assert item["affects_reasoning"] is False
+
+
+def test_external_fault_discrimination_evidence_enters_evidence_graph():
+    payload = {
+        "asset_id": "T1",
+        "event_description": (
+            "Transformer differential trip"
+        ),
+        "physics_measurements": {
+            "hv_currents": {
+                "phase_a": 100.0,
+                "phase_b": 100.0,
+                "phase_c": 100.0,
+            },
+            "lv_currents": {
+                "phase_a": 1000.0,
+                "phase_b": 1000.0,
+                "phase_c": 1000.0,
+            },
+            "hv_ct_ratio": {
+                "primary_a": 200.0,
+                "secondary_a": 1.0,
+            },
+            "lv_ct_ratio": {
+                "primary_a": 2000.0,
+                "secondary_a": 1.0,
+            },
+            "hv_nominal_voltage_kv": 230.0,
+            "lv_nominal_voltage_kv": 13.8,
+        },
+        "physics_context": {
+            "vector_group": "Dyn11",
+            "vector_group_compensation_applied": True,
+        },
+        "differential_characteristic_settings": {
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    graph = response.json()["session"]["evidence_graph"]
+
+    node = next(
+        item
+        for item in graph["nodes"]
+        if item["evidence_id"]
+        == "physics:external_fault_discrimination"
+    )
+
+    assert node["evidence_type"] == (
+        "external_fault_discrimination"
+    )

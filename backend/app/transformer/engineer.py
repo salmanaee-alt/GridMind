@@ -864,6 +864,16 @@ class TransformerEngineer:
                 external_fault_observation.model_dump()
             )
 
+            external_fault_evidence = (
+                physics_observation_to_evidence(
+                    external_fault_observation
+                )
+            )
+
+            session.add_evidence(
+                external_fault_evidence.model_dump()
+            )
+
         if request.harmonic_measurement is not None:
             harmonic_validity = (
                 evaluate_harmonic_physics_validity(
