@@ -78,6 +78,8 @@ from app.brain.evidence_adapter import (
 
 from app.brain.evidence_contracts import (
     EngineeringEvidence,
+    EvidenceRelationship,
+    EvidenceRelationshipType,
 )
 from app.brain.evidence_graph_builder import (
     build_evidence_graph,
@@ -825,6 +827,16 @@ class TransformerEngineer:
                         characteristic_observation.model_dump()
                     )
 
+                    characteristic_evidence = (
+                        physics_observation_to_evidence(
+                            characteristic_observation
+                        )
+                    )
+
+                    session.add_evidence(
+                        characteristic_evidence.model_dump()
+                    )
+
                 session.add_observation(
                     differential_observation.model_dump()
                 )
@@ -867,6 +879,56 @@ class TransformerEngineer:
             external_fault_evidence = (
                 physics_observation_to_evidence(
                     external_fault_observation
+                )
+            )
+            external_fault_evidence = (
+                external_fault_evidence.model_copy(
+                    update={
+                        "relationships": (
+                            EvidenceRelationship(
+                                target_evidence_id=(
+                                    "physics:differential_characteristic"
+                                ),
+                                relation=(
+                                    EvidenceRelationshipType.DERIVED_FROM
+                                ),
+                                source=(
+                                    "external_fault_discrimination"
+                                ),
+                                rationale=(
+                                    "External fault discrimination "
+                                    "uses the differential operating "
+                                    "region as an input."
+                                ),
+                                derivation_type=(
+                                    "physics_derivation"
+                                ),
+                                affects_reasoning=False,
+                                affects_decision=False,
+                            ),
+                            EvidenceRelationship(
+                                target_evidence_id=(
+                                    "physics:ct_saturation_evaluation"
+                                ),
+                                relation=(
+                                    EvidenceRelationshipType.DERIVED_FROM
+                                ),
+                                source=(
+                                    "external_fault_discrimination"
+                                ),
+                                rationale=(
+                                    "External fault discrimination "
+                                    "uses CT saturation evaluation "
+                                    "as an input."
+                                ),
+                                derivation_type=(
+                                    "physics_derivation"
+                                ),
+                                affects_reasoning=False,
+                                affects_decision=False,
+                            ),
+                        )
+                    }
                 )
             )
 
