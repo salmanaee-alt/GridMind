@@ -15,6 +15,10 @@ from app.transformer.ct_saturation_contracts import (
     CTSaturationIndicators,
 )
 
+from app.transformer.through_fault_context import (
+    ThroughFaultContext,
+)
+
 DGAStatus = Literal[
     "not_available",
     "normal",
@@ -241,6 +245,16 @@ class TransformerDifferentialTripRequest(BaseModel):
         description=(
             "Optional CT saturation indicators for "
             "shadow-only engineering evaluation."
+        ),
+    )
+
+    through_fault_context: (
+        ThroughFaultContext | None
+    ) = Field(
+        default=None,
+        description=(
+            "Optional through-fault and protection sequence "
+            "context for shadow-only engineering evaluation."
         ),
     )
 

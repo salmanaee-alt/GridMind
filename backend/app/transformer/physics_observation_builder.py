@@ -17,6 +17,9 @@ from app.transformer.ct_saturation_evaluator import (
 from app.transformer.external_fault_discrimination import (
     ExternalFaultDiscriminationEvaluation,
 )
+from app.transformer.through_fault_evaluator import (
+    ThroughFaultEvaluation,
+)
 
 
 def build_differential_current_observation(
@@ -227,6 +230,33 @@ def build_external_fault_discrimination_observation(
             "inputs": [
                 "differential_operating_region",
                 "ct_saturation_status",
+            ],
+        },
+    )
+
+
+def build_through_fault_observation(
+    *,
+    result: ThroughFaultEvaluation,
+) -> PhysicsObservation:
+    return PhysicsObservation(
+        observation_type="through_fault_evaluation",
+        validity_status="valid",
+        data={
+            "status": result.status,
+            "confirmed": result.confirmed,
+            "shadow_only": result.shadow_only,
+            "affects_reasoning": result.affects_reasoning,
+            "affects_decision": result.affects_decision,
+        },
+        provenance={
+            "calculation": "through_fault_evaluation",
+            "algorithm_version": "v0.43",
+            "inputs": [
+                "upstream_protection_operated",
+                "downstream_protection_operated",
+                "transformer_breakers_opened",
+                "high_through_fault_current_detected",
             ],
         },
     )

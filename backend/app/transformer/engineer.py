@@ -56,6 +56,7 @@ from app.transformer.physics_observation_builder import (
     build_differential_characteristic_observation,
     build_ct_saturation_observation,
     build_external_fault_discrimination_observation,
+    build_through_fault_observation,
 )
 
 from app.transformer.physics import (
@@ -121,6 +122,10 @@ from app.transformer.ct_saturation_evaluator import (
 
 from app.transformer.external_fault_discrimination import (
     evaluate_external_fault_discrimination,
+)
+
+from app.transformer.through_fault_evaluator import (
+    evaluate_through_fault_context,
 )
 from app.brain.engineering_brain import EngineeringBrain
 from app.brain.engineering_session import EngineeringSession
@@ -851,6 +856,35 @@ class TransformerEngineer:
                     differential_evidence.model_dump()
                 )
 
+        through_fault_result = None
+
+        if request.through_fault_context is not None:
+            through_fault_result = (
+                evaluate_through_fault_context(
+                    request.through_fault_context
+                )
+            )
+
+            through_fault_observation = (
+                build_through_fault_observation(
+                    result=through_fault_result,
+                )
+            )
+
+            session.add_observation(
+                through_fault_observation.model_dump()
+            )
+
+            through_fault_evidence = (
+                physics_observation_to_evidence(
+                    through_fault_observation
+                )
+            )
+
+            session.add_evidence(
+                through_fault_evidence.model_dump()
+            )
+
         if (
             operating_region_summary is not None
             and ct_saturation_result is not None
@@ -881,52 +915,81 @@ class TransformerEngineer:
                     external_fault_observation
                 )
             )
+            relationships = [
+                EvidenceRelationship(
+                    target_evidence_id=(
+                        "physics:differential_characteristic"
+                    ),
+                    relation=(
+                        EvidenceRelationshipType.DERIVED_FROM
+                    ),
+                    source=(
+                        "external_fault_discrimination"
+                    ),
+                    rationale=(
+                        "External fault discrimination "
+                        "uses the differential operating "
+                        "region as an input."
+                    ),
+                    derivation_type=(
+                        "physics_derivation"
+                    ),
+                    affects_reasoning=False,
+                    affects_decision=False,
+                ),
+                EvidenceRelationship(
+                    target_evidence_id=(
+                        "physics:ct_saturation_evaluation"
+                    ),
+                    relation=(
+                        EvidenceRelationshipType.DERIVED_FROM
+                    ),
+                    source=(
+                        "external_fault_discrimination"
+                    ),
+                    rationale=(
+                        "External fault discrimination "
+                        "uses CT saturation evaluation "
+                        "as an input."
+                    ),
+                    derivation_type=(
+                        "physics_derivation"
+                    ),
+                    affects_reasoning=False,
+                    affects_decision=False,
+                ),
+            ]
+
+            if through_fault_result is not None:
+                relationships.append(
+                    EvidenceRelationship(
+                        target_evidence_id=(
+                            "physics:through_fault_evaluation"
+                        ),
+                        relation=(
+                            EvidenceRelationshipType.DERIVED_FROM
+                        ),
+                        source=(
+                            "external_fault_discrimination"
+                        ),
+                        rationale=(
+                            "External fault discrimination "
+                            "uses through-fault protection "
+                            "context as an input."
+                        ),
+                        derivation_type=(
+                            "physics_derivation"
+                        ),
+                        affects_reasoning=False,
+                        affects_decision=False,
+                    )
+                )
+
             external_fault_evidence = (
                 external_fault_evidence.model_copy(
                     update={
-                        "relationships": (
-                            EvidenceRelationship(
-                                target_evidence_id=(
-                                    "physics:differential_characteristic"
-                                ),
-                                relation=(
-                                    EvidenceRelationshipType.DERIVED_FROM
-                                ),
-                                source=(
-                                    "external_fault_discrimination"
-                                ),
-                                rationale=(
-                                    "External fault discrimination "
-                                    "uses the differential operating "
-                                    "region as an input."
-                                ),
-                                derivation_type=(
-                                    "physics_derivation"
-                                ),
-                                affects_reasoning=False,
-                                affects_decision=False,
-                            ),
-                            EvidenceRelationship(
-                                target_evidence_id=(
-                                    "physics:ct_saturation_evaluation"
-                                ),
-                                relation=(
-                                    EvidenceRelationshipType.DERIVED_FROM
-                                ),
-                                source=(
-                                    "external_fault_discrimination"
-                                ),
-                                rationale=(
-                                    "External fault discrimination "
-                                    "uses CT saturation evaluation "
-                                    "as an input."
-                                ),
-                                derivation_type=(
-                                    "physics_derivation"
-                                ),
-                                affects_reasoning=False,
-                                affects_decision=False,
-                            ),
+                        "relationships": tuple(
+                            relationships
                         )
                     }
                 )
@@ -935,6 +998,7 @@ class TransformerEngineer:
             session.add_evidence(
                 external_fault_evidence.model_dump()
             )
+
 
         if request.harmonic_measurement is not None:
             harmonic_validity = (

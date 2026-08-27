@@ -126,3 +126,40 @@ def test_ct_saturation_indicators_are_optional():
     )
 
     assert request.ct_saturation_indicators is None
+
+
+def test_request_accepts_through_fault_context():
+    request = TransformerDifferentialTripRequest(
+        asset_id="T1",
+        event_description=(
+            "Transformer differential trip"
+        ),
+        through_fault_context={
+            "upstream_protection_operated": True,
+            "downstream_protection_operated": True,
+            "transformer_breakers_opened": True,
+            "high_through_fault_current_detected": True,
+        },
+    )
+
+    context = request.through_fault_context
+
+    assert context is not None
+    assert context.upstream_protection_operated is True
+    assert context.downstream_protection_operated is True
+    assert context.transformer_breakers_opened is True
+    assert context.high_through_fault_current_detected is True
+    assert context.shadow_only is True
+    assert context.affects_reasoning is False
+    assert context.affects_decision is False
+
+
+def test_through_fault_context_is_optional():
+    request = TransformerDifferentialTripRequest(
+        asset_id="T1",
+        event_description=(
+            "Transformer differential trip"
+        ),
+    )
+
+    assert request.through_fault_context is None
