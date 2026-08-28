@@ -19,6 +19,7 @@ def evaluate_differential_trip_hypotheses(
     relay_targets: list[str] | None = None,
     dga_status: str | None = None,
     physics_ct_saturation_status: str | None = None,
+    physics_external_fault_discrimination_status: str | None = None,
     comtrade_summary: str | None = None,
     hv_breaker_status: str | None = None,
     lv_breaker_status: str | None = None,
@@ -158,9 +159,28 @@ def evaluate_differential_trip_hypotheses(
 
     external_supporting: list[str] = []
 
+    if (
+        physics_external_fault_discrimination_status
+        == "supported"
+    ):
+        external_supporting.append(
+            "Physics discrimination supports an external "
+            "fault with CT saturation scenario."
+        )
+
     if physics_ct_saturation_status == "supported":
         external_supporting.append(
             "Physics evaluation supports CT saturation."
+        )
+
+
+    if (
+        physics_external_fault_discrimination_status
+        == "supported"
+    ):
+        external_supporting.append(
+            "Physics discrimination supports an external "
+            "fault with CT saturation scenario."
         )
 
     if ct_saturation_detected:

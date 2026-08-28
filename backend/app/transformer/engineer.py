@@ -210,6 +210,8 @@ class TransformerEngineer:
                 request.ct_saturation_indicators
             )
 
+        external_fault_result = None
+
         hypothesis_evaluations = (
             evaluate_differential_trip_hypotheses(
                 available_evidence=available_evidence,
@@ -227,17 +229,17 @@ class TransformerEngineer:
                 load_percent=request.load_percent,
                 relay_targets=request.relay_targets,
                 dga_status=request.dga_status,
+                physics_ct_saturation_status=(
+                    ct_saturation_result.status
+                    if ct_saturation_result is not None
+                    else None
+                ),
                 comtrade_summary=request.comtrade_summary,
                 hv_breaker_status=(
                     request.hv_breaker_status
                 ),
                 lv_breaker_status=(
                     request.lv_breaker_status
-                ),
-                physics_ct_saturation_status=(
-                    ct_saturation_result.status
-                    if ct_saturation_result is not None
-                    else None
                 ),
             )
         )

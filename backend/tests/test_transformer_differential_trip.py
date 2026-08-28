@@ -2924,3 +2924,181 @@ def test_external_fault_discrimination_provenance_includes_through_fault_evidenc
         "physics:through_fault_evaluation",
         "derived_from",
     ) in identities
+
+
+def test_external_fault_provenance_omits_through_fault_when_context_missing():
+    payload = {
+        "asset_id": "T1",
+        "event_description": "Transformer differential trip",
+        "physics_measurements": {
+            "hv_currents": {
+                "phase_a": 100.0,
+                "phase_b": 100.0,
+                "phase_c": 100.0,
+            },
+            "lv_currents": {
+                "phase_a": 1000.0,
+                "phase_b": 1000.0,
+                "phase_c": 1000.0,
+            },
+            "hv_ct_ratio": {
+                "primary_a": 200.0,
+                "secondary_a": 1.0,
+            },
+            "lv_ct_ratio": {
+                "primary_a": 2000.0,
+                "secondary_a": 1.0,
+            },
+            "hv_nominal_voltage_kv": 230.0,
+            "lv_nominal_voltage_kv": 13.8,
+        },
+        "physics_context": {
+            "vector_group": "Dyn11",
+            "vector_group_compensation_applied": True,
+        },
+        "differential_characteristic_settings": {
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    evidence = response.json()["session"]["evidence"]
+
+    external = next(
+        item
+        for item in evidence
+        if item["evidence_id"]
+        == "physics:external_fault_discrimination"
+    )
+
+    targets = {
+        relation["target_evidence_id"]
+        for relation in external["relationships"]
+    }
+
+    assert "physics:differential_characteristic" in targets
+    assert "physics:ct_saturation_evaluation" in targets
+    assert "physics:through_fault_evaluation" not in targets
+
+
+def test_external_fault_provenance_targets_exist_in_session_evidence():
+    payload = {
+        "asset_id": "T1",
+        "event_description": "Transformer differential trip",
+        "physics_measurements": {
+            "hv_currents": {
+                "phase_a": 100.0,
+                "phase_b": 100.0,
+                "phase_c": 100.0,
+            },
+            "lv_currents": {
+                "phase_a": 1000.0,
+                "phase_b": 1000.0,
+                "phase_c": 1000.0,
+            },
+            "hv_ct_ratio": {
+                "primary_a": 200.0,
+                "secondary_a": 1.0,
+            },
+            "lv_ct_ratio": {
+                "primary_a": 2000.0,
+                "secondary_a": 1.0,
+            },
+            "hv_nominal_voltage_kv": 230.0,
+            "lv_nominal_voltage_kv": 13.8,
+        },
+        "physics_context": {
+            "vector_group": "Dyn11",
+            "vector_group_compensation_applied": True,
+        },
+        "differential_characteristic_settings": {
+            "pickup_a": 0.30,
+            "slope": 0.25,
+        },
+        "ct_saturation_indicators": {
+            "waveform_asymmetry_detected": True,
+            "secondary_current_distortion_detected": True,
+            "high_through_fault_current_detected": True,
+        },
+        "through_fault_context": {
+            "upstream_protection_operated": True,
+            "downstream_protection_operated": True,
+            "transformer_breakers_opened": True,
+            "high_through_fault_current_detected": True,
+        },
+    }
+
+    response = client.post(
+        "/transformer/differential-trip",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    session = response.json()["session"]
+    evidence = session["evidence"]
+
+    evidence_ids = {
+        item["evidence_id"]
+        for item in evidence
+    }
+
+    external = next(
+        item
+        for item in evidence
+        if item["evidence_id"]
+        == "physics:external_fault_discrimination"
+    )
+
+    derived_from_targets = {
+        relation["target_evidence_id"]
+        for relation in external["relationships"]
+        if relation["relation"] == "derived_from"
+    }
+
+    assert derived_from_targets
+    assert derived_from_targets <= evidence_ids
+
+def test_external_fault_discrimination_adds_reasoning_support_without_raising_confidence():
+    evaluations = evaluate_differential_trip_hypotheses(
+        available_evidence=[],
+        missing_required_evidence=[],
+        relay_targets=[],
+        dga_status="not_available",
+        comtrade_summary="not_available",
+        buchholz_alarm=None,
+        comtrade_available=False,
+        dga_available=False,
+        oil_temperature_c=None,
+        load_percent=None,
+        physics_external_fault_discrimination_status=(
+            "supported"
+        ),
+    )
+
+    external = next(
+        item
+        for item in evaluations
+        if item["hypothesis"]
+        == "External fault with CT saturation"
+    )
+
+    assert (
+        "Physics discrimination supports an external "
+        "fault with CT saturation scenario."
+        in external["supporting_evidence"]
+    )
+
+    assert external["confidence"] == "low"
