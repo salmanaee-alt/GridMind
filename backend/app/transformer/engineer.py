@@ -50,6 +50,10 @@ from app.capabilities.traceable_context.capability_manifest import (
     TRACEABLE_CONTEXT_CAPABILITY_MANIFEST,
 )
 
+from app.reasoning.shadow_hypothesis_enrichment import (
+    enrich_hypothesis_with_shadow_support,
+)
+
 from app.transformer.physics_observation_builder import (
     build_differential_current_observation,
     build_harmonic_restraint_observation,
@@ -1233,6 +1237,28 @@ class TransformerEngineer:
         
         brain = EngineeringBrain()
         completed_session = brain.run(session)
+
+        if (
+            external_fault_result is not None
+            and external_fault_result.status == "supported"
+        ):
+            completed_session.hypotheses = [
+                enrich_hypothesis_with_shadow_support(
+                    hypothesis=hypothesis,
+                    target_hypothesis=(
+                        "External fault with CT saturation"
+                    ),
+                    support=(
+                        "Physics discrimination supports an "
+                        "external fault with CT saturation "
+                        "scenario."
+                    ),
+                    source=(
+                        "physics:external_fault_discrimination"
+                    ),
+                )
+                for hypothesis in completed_session.hypotheses
+            ]
 
         return {
             "role": "Transformer Engineer",
